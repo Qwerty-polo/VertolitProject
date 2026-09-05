@@ -1,0 +1,8 @@
+/* ============ BOOKING — quiet dark section, one clear action ============ */
+.booking{background:var(--coal);padding:var(--section-pad) 0;text-align:center;}
+.booking__inner{max-width:600px;margin-inline:auto;}
+.booking__title{font-family:var(--font-display);font-weight:400;font-size:clamp(2.2rem,5vw,3.6rem);color:var(--parchment);margin-bottom:1.1rem;}
+.booking__text{font-size:1.05rem;color:rgba(232,223,201,.78);margin-bottom:2.2rem;}
+.booking__actions{display:flex;flex-direction:column;align-items:center;gap:1.1rem;}
+.booking__phone{font-size:.92rem;color:rgba(232,223,201,.62);border-bottom:1px solid transparent;transition:border-color .3s var(--ease), color .3s var(--ease);}
+.booking__phone:hover{color:var(--parchment);border-color:rgba(232,223,201,.5);}

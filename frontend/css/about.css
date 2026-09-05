@@ -1,0 +1,16 @@
+/* ============ ABOUT (the one light/parchment section) ============ */
+.about{background:var(--parchment); color:var(--obsidian); padding:var(--section-pad) 0;}
+.about__grid{display:grid;grid-template-columns:.85fr 1fr;gap:clamp(2.5rem,6vw,5.5rem);align-items:center;}
+.about__media{padding:clamp(1rem,3vw,2.25rem) 0;}
+.about__media-frame{border-radius:var(--r-lg);overflow:hidden;aspect-ratio:4/5;}
+.about__media-frame img{width:100%;height:100%;object-fit:cover;}
+.about__title{margin-bottom:1.4rem;max-width:14ch;}
+.about__text p{font-size:1.06rem;line-height:1.75;color:#3A342A;margin-bottom:1.1rem;max-width:50ch;}
+.about__quote{
+  font-family:var(--font-display);font-weight:400;font-style:normal;
+  font-size:clamp(1.3rem,2.2vw,1.7rem);line-height:1.35;color:var(--ember);
+  margin:1.6rem 0 1.8rem; max-width:20ch;
+}
+.about__facts{display:flex;gap:2.6rem;padding-top:1.8rem;border-top:1px solid rgba(23,19,14,.14);}
+.about__fact strong{display:block;font-family:var(--font-display);font-weight:400;font-size:1.9rem;color:var(--obsidian);}
+.about__fact span{font-size:.85rem;color:var(--bark);}

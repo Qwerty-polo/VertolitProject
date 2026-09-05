@@ -1,0 +1,53 @@
+/* ============ GALLERY — one unified horizontal filmstrip ============ */
+.gallery{padding:var(--section-pad) 0;}
+.gallery__head{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  gap:2rem; flex-wrap:wrap; margin-bottom:2.5rem;
+}
+.gallery__head p{font-size:1rem;color:rgba(232,223,201,.75);max-width:38ch;}
+.gallery__scroll-controls{display:flex;gap:.7rem;}
+.scroll-btn{
+  width:48px;height:48px;border-radius:50%;border:1px solid rgba(232,223,201,.3);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .35s var(--ease), border-color .35s var(--ease);
+}
+.scroll-btn:hover{background:var(--parchment);color:var(--obsidian);border-color:var(--parchment);}
+.scroll-btn svg{width:17px;height:17px;}
+
+.gallery__scroll{
+  display:flex;gap:1.1rem;overflow-x:auto;scroll-snap-type:x proximity;
+  padding:0 var(--pad) .5rem;cursor:grab;scrollbar-width:none;
+}
+.gallery__scroll::-webkit-scrollbar{display:none;}
+.gallery__scroll.is-dragging{cursor:grabbing;scroll-snap-type:none;}
+.gallery-item{
+  position:relative;flex:0 0 auto;height:clamp(340px,42vw,460px);
+  border-radius:var(--r-lg);overflow:hidden;scroll-snap-align:start;
+}
+.gallery-item--w1{width:clamp(220px,24vw,300px);}
+.gallery-item--w2{width:clamp(320px,38vw,480px);}
+.gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform 1s var(--ease);}
+.gallery-item:hover img{transform:scale(1.06);}
+.gallery-item__label{
+  position:absolute;left:1.4rem;bottom:1.3rem;color:var(--parchment);
+  font-size:.85rem;font-weight:700;
+  padding:.5rem 1rem;border-radius:var(--r-full);
+  background:rgba(23,19,14,.42);backdrop-filter:blur(6px);
+}
+
+/* Custom cursor — appears only over gallery photos (see js/gallery.js) */
+.cursor-dot{
+  position:fixed; top:0; left:0; width:12px; height:12px; border-radius:50%;
+  background:var(--parchment); z-index:9999; pointer-events:none; opacity:0;
+  transition:width .35s var(--ease), height .35s var(--ease), opacity .3s var(--ease);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-body); font-size:.72rem; font-weight:700; color:var(--obsidian);
+  white-space:nowrap; mix-blend-mode:difference;
+}
+.cursor-dot.is-visible{opacity:1;}
+.cursor-dot.is-active{width:84px;height:84px;}
+
+/* Custom cursor + hidden native cursor: fine pointer + full motion only */
+@media (pointer:fine) and (prefers-reduced-motion: no-preference){
+  .gallery-trigger{cursor:none;}
+}

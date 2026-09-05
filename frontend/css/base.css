@@ -1,0 +1,94 @@
+/* ===================================================================
+   BASE — reset, base element styles, and site-wide utility classes
+   (buttons, text links, section titles, the divider motif, the
+   reveal-on-scroll utility). Component- and section-specific styles
+   live in their own files; this file is for things reused everywhere.
+   =================================================================== */
+
+*,*::before,*::after{box-sizing:border-box;}
+html{scroll-behavior:smooth; scroll-padding-top:var(--nav-h);}
+body{
+  margin:0;
+  background:var(--obsidian);
+  color:var(--parchment);
+  font-family:var(--font-body);
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+img{max-width:100%;display:block;}
+a{color:inherit;text-decoration:none;}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+ul{list-style:none;margin:0;padding:0;}
+h1,h2,h3,p,figure{margin:0;}
+:focus-visible{outline:2px solid var(--ember);outline-offset:3px;}
+body.no-scroll{overflow:hidden;}
+.container{max-width:var(--container);margin-inline:auto;padding-inline:var(--pad);}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* Skip link */
+.skip-link{
+  position:absolute; left:1rem; top:-4rem; z-index:3000;
+  background:var(--parchment); color:var(--obsidian);
+  padding:.85rem 1.4rem; border-radius:var(--r-md);
+  font-size:.9rem; font-weight:700; transition:top .3s var(--ease);
+}
+.skip-link:focus{top:1rem;}
+
+/* Fine grain texture, very low opacity, whole page */
+.grain{
+  position:fixed; inset:0; z-index:9997; pointer-events:none; opacity:.035; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.section-title{
+  font-family:var(--font-display); font-weight:400;
+  font-size:clamp(2rem, 4vw, 3.4rem); line-height:1.08;
+  color:var(--parchment);
+}
+.section-title--dark{color:var(--obsidian);}
+
+/* Buttons — quiet by default, one accent fill for the primary action */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  padding:1rem 2rem; border-radius:var(--r-full);
+  font-family:var(--font-body); font-size:.96rem; font-weight:700;
+  transition:transform .5s var(--ease), background .35s var(--ease), color .35s var(--ease), border-color .35s var(--ease);
+  white-space:nowrap;
+}
+.btn--accent{background:var(--ember);color:var(--white);}
+.btn--accent:hover{background:#7c3b22; transform:translateY(-2px);}
+.btn--outline-light{background:transparent;border:1px solid rgba(232,223,201,.4);color:var(--parchment);}
+.btn--outline-light:hover{background:rgba(232,223,201,.08); border-color:rgba(232,223,201,.75);}
+.btn--outline-dark{background:transparent;border:1px solid rgba(23,19,14,.35);color:var(--obsidian);}
+.btn--outline-dark:hover{background:var(--obsidian); color:var(--parchment); border-color:var(--obsidian);}
+.btn--lg{padding:1.1rem 2.4rem; font-size:1rem;}
+
+.text-link{
+  position:relative; font-size:.92rem; font-weight:700; padding-bottom:.15rem;
+  border-bottom:1px solid currentColor; opacity:.85; transition:opacity .3s var(--ease);
+}
+.text-link:hover{opacity:1;}
+
+/* Geometric divider — a restrained, specific motif instead of decoration
+   for decoration's sake: a repeating diamond rhythm referencing the
+   rhythm of Ukrainian embroidery borders, abstracted to a simple line motif. */
+.divider{
+  height:56px; background:var(--obsidian);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cg fill='none' stroke='%239A4B2E' stroke-width='1.2' opacity='0.55'%3E%3Cpath d='M28 8 L44 28 L28 48 L12 28 Z'/%3E%3Ccircle cx='28' cy='28' r='2.4' fill='%239A4B2E' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:repeat-x; background-position:center; background-size:56px 56px;
+}
+
+/* Single reveal utility — used sparingly (About image, Experience section only) */
+[data-reveal]{opacity:0; transform:scale(.97); transition:opacity 1.1s var(--ease), transform 1.1s var(--ease);}
+[data-reveal].is-visible{opacity:1; transform:scale(1);}

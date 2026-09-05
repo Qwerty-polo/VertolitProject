@@ -1,0 +1,32 @@
+/* ===================================================================
+   VARIABLES — design tokens
+   Change a brand color, font, or spacing value here and it updates
+   everywhere on the site. This is almost always the first file you
+   want when making a styling change (e.g. swapping the accent color).
+   =================================================================== */
+
+:root{
+  /* ---- color: 5 named values, one accent ---- */
+  --obsidian:#17130E;     /* primary dark background */
+  --coal:#241E16;         /* raised panel surface on obsidian */
+  --parchment:#E8DFC9;    /* light neutral: text-on-dark + the one light section */
+  --bark:#6B6255;         /* quiet body text on parchment */
+  --ember:#9A4B2E;        /* the single accent */
+  --ember-rgb:154,75,46;
+  --white:#FDFAF3;
+
+  --font-display:'Yeseva One', 'PT Serif', Georgia, serif;
+  --font-body:'PT Sans','Segoe UI',Arial,sans-serif;
+
+  --container:1360px;
+  --pad:clamp(1.25rem, 4vw, 3rem);
+  --section-pad:clamp(4.5rem, 9vw, 8rem);
+
+  --r-lg:clamp(20px, 2.6vw, 36px);
+  --r-md:16px;
+  --r-full:999px;
+
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease-soft:cubic-bezier(.65,0,.35,1);
+  --nav-h:84px;
+}
