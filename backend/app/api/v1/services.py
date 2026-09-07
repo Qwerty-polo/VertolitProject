@@ -5,7 +5,7 @@ from typing import List, Annotated
 
 from app.database import async_session_maker
 from app.models.service import Service
-from app.schemas.service import ServiceResponse
+from app.schemas.service import ServiceResponse, ServiceCreate
 
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
@@ -28,3 +28,14 @@ async def get_all_services(db: SessionDep):
     # Витягуємо всі знайдені рядки
     services = result.scalars().all()
     return services
+
+
+@router.post("/", response_model=ServiceResponse)
+async def create_service(service_in: ServiceCreate,
+                         db: SessionDep):
+    service = Service(**service_in.model_dump())
+
+    db.add(service)
+    await db.commit()
+    await db.refresh(service)
+    return service

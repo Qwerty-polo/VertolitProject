@@ -1,6 +1,11 @@
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Text
 from app.database import Base
+from typing import TYPE_CHECKING
+
+#Для того шоб не було circular import
+if TYPE_CHECKING:
+    from .booking import Booking
 
 class Service(Base):
     __tablename__ = "services"
@@ -9,3 +14,5 @@ class Service(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[int] = mapped_column(nullable=False) # Ціна (наприклад, за годину)
+
+    bookings: Mapped[list["Booking"]] = relationship(back_populates="service")

@@ -10,3 +10,6 @@ class ServiceResponse(ServiceBase):
 
     # Цей конфіг дозволяє Pydantic читати дані прямо з об'єктів SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
+
+class ServiceCreate(ServiceBase):
+    pass
