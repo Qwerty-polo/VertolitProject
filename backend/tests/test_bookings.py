@@ -209,3 +209,166 @@ async def test_cancelled_booking_does_not_block_slot(client):
     )
 
     assert second_response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_get_all_bookings(client):
+    service_payload = {
+        "name": "Sauna",
+        "description": "Test sauna",
+        "price": 1500,
+        "minimum_duration_hours": 3,
+    }
+
+    service_response = await client.post(
+        "/api/v1/services/",
+        json=service_payload,
+    )
+
+    service_id = service_response.json()["id"]
+
+    booking_payload = {
+        "service_id": service_id,
+        "customer_name": "Ivan",
+        "customer_phone": "+380991112233",
+        "starts_at": "2026-09-10T13:00:00+03:00",
+        "guests": 4,
+        "duration_hours": 3,
+        "comment": "Test booking",
+    }
+
+    create_response = await client.post(
+        "/api/v1/bookings/",
+        json=booking_payload,
+    )
+
+    assert create_response.status_code == 201
+
+    response = await client.get("/api/v1/bookings/")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) >= 1
+
+    assert any(
+        booking["customer_name"] == "Ivan"
+        and booking["service_id"] == service_id
+        for booking in data
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_booking_by_id(client):
+    service_payload = {
+        "name": "Sauna",
+        "description": "Test sauna",
+        "price": 1500,
+        "minimum_duration_hours": 3,
+    }
+
+    service_response = await client.post(
+        "/api/v1/services/",
+        json=service_payload,
+    )
+
+    service_id = service_response.json()["id"]
+
+    booking_payload = {
+        "service_id": service_id,
+        "customer_name": "Ivan",
+        "customer_phone": "+380991112233",
+        "starts_at": "2026-09-10T13:00:00+03:00",
+        "guests": 4,
+        "duration_hours": 3,
+        "comment": "Test booking",
+    }
+
+    create_response = await client.post(
+        "/api/v1/bookings/",
+        json=booking_payload,
+    )
+
+    booking_id = create_response.json()["id"]
+
+    response = await client.get(
+        f"/api/v1/bookings/{booking_id}"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == booking_id
+    assert data["customer_name"] == "Ivan"
+    assert data["service_id"] == service_id
+
+
+@pytest.mark.asyncio
+async def test_get_booking_not_found(client):
+    response = await client.get(
+        "/api/v1/bookings/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Booking not found"
+
+
+@pytest.mark.asyncio
+async def test_update_booking_status(client):
+    service_payload = {
+        "name": "Sauna",
+        "description": "Test sauna",
+        "price": 1500,
+        "minimum_duration_hours": 3,
+    }
+
+    service_response = await client.post(
+        "/api/v1/services/",
+        json=service_payload,
+    )
+
+    service_id = service_response.json()["id"]
+
+    booking_payload = {
+        "service_id": service_id,
+        "customer_name": "Ivan",
+        "customer_phone": "+380991112233",
+        "starts_at": "2026-09-10T13:00:00+03:00",
+        "guests": 4,
+        "duration_hours": 3,
+        "comment": "Test booking",
+    }
+
+    create_response = await client.post(
+        "/api/v1/bookings/",
+        json=booking_payload,
+    )
+
+    booking_id = create_response.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/bookings/{booking_id}/status",
+        json={"status": "confirmed"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == booking_id
+    assert data["status"] == "confirmed"
+
+
+
+@pytest.mark.asyncio
+async def test_update_booking_status_not_found(client):
+    response = await client.patch(
+        "/api/v1/bookings/999999/status",
+        json={"status": "cancelled"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Booking not found"
+
