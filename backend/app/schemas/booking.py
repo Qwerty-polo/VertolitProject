@@ -8,6 +8,7 @@ class BookingCreate(BaseModel):
     starts_at: datetime
     guests: int
     comment: str | None = None
+    duration_hours: int | None = None
 
 
 class BookingResponse(BaseModel):

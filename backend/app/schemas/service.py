@@ -4,7 +4,7 @@ class ServiceBase(BaseModel):
     name: str
     description: str | None = None
     price: int
-    duration_minutes: int
+    minimum_duration_hours: int
 
 class ServiceResponse(ServiceBase):
     id: int

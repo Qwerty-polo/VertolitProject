@@ -14,5 +14,5 @@ class Service(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[int] = mapped_column(nullable=False) # Ціна (наприклад, за годину)
-    duration_minutes: Mapped[int] = mapped_column(nullable=False)
+    minimum_duration_hours: Mapped[int] = mapped_column(nullable=False)
     bookings: Mapped[list["Booking"]] = relationship(back_populates="service")

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.config import settings
 from app.api.v1.services import router as services_router
+from app.api.v1.bookings import router as booking_router
 app = FastAPI(
     title="Vertolit Complex API",
     description="API для комплексу відпочинку",
@@ -8,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(services_router, prefix="/api/v1")
+app.include_router(booking_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
