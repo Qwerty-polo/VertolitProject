@@ -8,8 +8,7 @@ from app.models.booking import Booking
 from app.models.service import Service
 from app.schemas.booking import BookingCreate, BookingResponse, BookingStatus, BookingStatusUpdate
 
-from .services import SessionDep
-
+from app.dependencies import SessionDep
 
 router = APIRouter(
     prefix="/bookings",
@@ -26,6 +25,18 @@ async def get_all_bookings(db:SessionDep):
         )
     bookings = result.scalars().all()
     return bookings
+
+
+@router.get("/{booking_id}", response_model=BookingResponse)
+async def get_booking(booking_id: int, db: SessionDep):
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+    booking = result.scalar_one_or_none()
+    if booking is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found"
+        )
+    return booking
 
 @router.post(
     "/",
