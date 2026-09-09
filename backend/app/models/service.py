@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 #Для того шоб не було circular import
 if TYPE_CHECKING:
     from .booking import Booking
+    from .availability_block import AvailabilityBlock
 
 class Service(Base):
     __tablename__ = "services"
@@ -16,3 +17,7 @@ class Service(Base):
     price: Mapped[int] = mapped_column(nullable=False) # Ціна (наприклад, за годину)
     minimum_duration_hours: Mapped[int] = mapped_column(nullable=False)
     bookings: Mapped[list["Booking"]] = relationship(back_populates="service")
+
+    availability_blocks: Mapped[list["AvailabilityBlock"]] = relationship(
+        back_populates="service"
+    )

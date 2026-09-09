@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime
 
 @pytest.mark.asyncio
 async def test_create_booking(client):
@@ -109,7 +108,7 @@ async def test_create_booking_duration_too_short(client):
 
 
 @pytest.mark.asyncio
-async def test_create_booking_conflict(client):
+async def test_overlapping_pending_bookings_are_allowed(client):
     service_payload = {
         "name": "Sauna",
         "description": "Test sauna",
@@ -156,9 +155,8 @@ async def test_create_booking_conflict(client):
         json=conflicting_booking,
     )
 
-    assert response.status_code == 409
-    assert response.json()["detail"] == "This time slot is already booked"
-
+    assert response.status_code == 201
+    assert response.json()["status"] == "pending"
 
 @pytest.mark.asyncio
 async def test_cancelled_booking_does_not_block_slot(client):
@@ -372,3 +370,148 @@ async def test_update_booking_status_not_found(client):
     assert response.status_code == 404
     assert response.json()["detail"] == "Booking not found"
 
+
+from datetime import datetime, timezone, timedelta
+
+
+@pytest.mark.asyncio
+async def test_booking_guests_must_be_positive(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+    service_id = service_response.json()["id"]
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "starts_at": "2026-09-20T13:00:00+03:00",
+            "guests": 0,
+            "duration_hours": 3,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_booking_duration_must_be_positive(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+    service_id = service_response.json()["id"]
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "starts_at": "2026-09-20T13:00:00+03:00",
+            "guests": 4,
+            "duration_hours": 0,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_booking_cannot_start_in_past(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+    service_id = service_response.json()["id"]
+
+    past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "starts_at": past_time.isoformat(),
+            "guests": 4,
+            "duration_hours": 3,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_cannot_confirm_overlapping_booking(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+    service_id = service_response.json()["id"]
+
+    first_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "starts_at": "2026-09-20T13:00:00+03:00",
+            "guests": 4,
+            "duration_hours": 3,
+        },
+    )
+
+    second_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Petro",
+            "customer_phone": "+380992223344",
+            "starts_at": "2026-09-20T14:00:00+03:00",
+            "guests": 2,
+            "duration_hours": 3,
+        },
+    )
+
+    first_booking_id = first_response.json()["id"]
+    second_booking_id = second_response.json()["id"]
+
+    confirm_first = await client.patch(
+        f"/api/v1/bookings/{first_booking_id}/status",
+        json={"status": "confirmed"},
+    )
+
+    assert confirm_first.status_code == 200
+    assert confirm_first.json()["status"] == "confirmed"
+
+    confirm_second = await client.patch(
+        f"/api/v1/bookings/{second_booking_id}/status",
+        json={"status": "confirmed"},
+    )
+
+    assert confirm_second.status_code == 409
+    assert confirm_second.json()["detail"] == "This time slot is already confirmed"

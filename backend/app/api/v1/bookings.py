@@ -85,7 +85,7 @@ async def create_booking(
             Booking.service_id == service.id,
             Booking.starts_at < ends_at,
             Booking.ends_at > booking_in.starts_at,
-            Booking.status != BookingStatus.cancelled.value,
+            Booking.status == BookingStatus.confirmed.value,
         )
     )
 
@@ -113,19 +113,45 @@ async def create_booking(
     return booking
 
 @router.patch("/{booking_id}/status", response_model=BookingResponse)
-async def update_booking_status(booking_id: int, status_in: BookingStatusUpdate,db: SessionDep):
+async def update_booking_status(
+    booking_id: int,
+    status_in: BookingStatusUpdate,
+    db: SessionDep
+):
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
     )
+
     booking = result.scalar_one_or_none()
 
     if booking is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Booking not found"
         )
+
+    if status_in.status == BookingStatus.confirmed:
+        reserved = await db.execute(
+            select(Booking).where(
+                Booking.id != booking.id,
+                Booking.service_id == booking.service_id,
+                Booking.starts_at < booking.ends_at,
+                Booking.ends_at > booking.starts_at,
+                Booking.status == BookingStatus.confirmed.value,
+            )
+        )
+
+        conflict = reserved.scalars().first()
+
+        if conflict is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This time slot is already confirmed"
+            )
+
     booking.status = status_in.status.value
 
     await db.commit()
     await db.refresh(booking)
+
     return booking
