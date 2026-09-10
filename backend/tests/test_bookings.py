@@ -2,7 +2,7 @@ import pytest
 
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-
+from unittest.mock import patch
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
@@ -553,3 +553,56 @@ async def test_cannot_confirm_overlapping_booking(client):
         confirm_second.json()["detail"]
         == "This time slot is already confirmed"
     )
+
+
+@pytest.mark.asyncio
+async def test_create_booking_sends_celery_notification(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+    starts_at = future_datetime()
+
+    with patch(
+        "app.api.v1.bookings.send_booking_notification.delay"
+    ) as delay_mock:
+        response = await client.post(
+            "/api/v1/bookings/",
+            json={
+                "service_id": service_id,
+                "customer_name": "Ivan",
+                "customer_phone": "+380991112233",
+                "starts_at": starts_at,
+                "guests": 4,
+                "duration_hours": 3,
+                "comment": "Test booking",
+            },
+        )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    delay_mock.assert_called_once()
+
+    called_args = delay_mock.call_args.args
+
+    assert called_args[0] == data["id"]
+    assert called_args[1] == service_id
+
+    celery_starts_at = datetime.fromisoformat(
+        called_args[2].replace("Z", "+00:00")
+    )
+
+    response_starts_at = datetime.fromisoformat(
+        data["starts_at"].replace("Z", "+00:00")
+    )
+
+    assert celery_starts_at == response_starts_at
