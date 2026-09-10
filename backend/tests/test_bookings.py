@@ -1,5 +1,22 @@
 import pytest
 
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
+
+
+def future_datetime(hours_from_now: int = 24) -> str:
+    value = datetime.now(KYIV_TZ) + timedelta(hours=hours_from_now)
+
+    return value.replace(
+        minute=0,
+        second=0,
+        microsecond=0,
+    ).isoformat()
+
+
 @pytest.mark.asyncio
 async def test_create_booking(client):
     service_payload = {
@@ -16,20 +33,25 @@ async def test_create_booking(client):
 
     service_id = service_response.json()["id"]
 
+    starts_at_value = future_datetime()
+
     booking_payload = {
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": starts_at_value,
         "guests": 4,
         "duration_hours": 3,
         "comment": "Test booking",
     }
+
     response = await client.post(
         "/api/v1/bookings/",
         json=booking_payload,
     )
+
     assert response.status_code == 201
+
     data = response.json()
 
     starts_at = datetime.fromisoformat(
@@ -39,8 +61,9 @@ async def test_create_booking(client):
     ends_at = datetime.fromisoformat(
         data["ends_at"].replace("Z", "+00:00")
     )
+
     expected_starts_at = datetime.fromisoformat(
-        "2026-09-10T13:00:00+03:00"
+        starts_at_value
     )
 
     assert starts_at == expected_starts_at
@@ -57,7 +80,7 @@ async def test_create_booking_service_not_found(client):
         "service_id": 999999,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 3,
         "comment": "Test booking",
@@ -92,7 +115,7 @@ async def test_create_booking_duration_too_short(client):
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 2,
         "comment": "Too short",
@@ -104,7 +127,10 @@ async def test_create_booking_duration_too_short(client):
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Minimum booking duration is 3 hours"
+    assert (
+        response.json()["detail"]
+        == "Minimum booking duration is 3 hours"
+    )
 
 
 @pytest.mark.asyncio
@@ -123,11 +149,14 @@ async def test_overlapping_pending_bookings_are_allowed(client):
 
     service_id = service_response.json()["id"]
 
+    first_start = future_datetime(24)
+    second_start = future_datetime(25)
+
     first_booking = {
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": first_start,
         "guests": 4,
         "duration_hours": 3,
         "comment": "First booking",
@@ -144,7 +173,7 @@ async def test_overlapping_pending_bookings_are_allowed(client):
         "service_id": service_id,
         "customer_name": "Petro",
         "customer_phone": "+380991112244",
-        "starts_at": "2026-09-10T14:00:00+03:00",
+        "starts_at": second_start,
         "guests": 3,
         "duration_hours": 3,
         "comment": "Conflict booking",
@@ -157,6 +186,7 @@ async def test_overlapping_pending_bookings_are_allowed(client):
 
     assert response.status_code == 201
     assert response.json()["status"] == "pending"
+
 
 @pytest.mark.asyncio
 async def test_cancelled_booking_does_not_block_slot(client):
@@ -178,7 +208,7 @@ async def test_cancelled_booking_does_not_block_slot(client):
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 3,
         "comment": "First booking",
@@ -229,7 +259,7 @@ async def test_get_all_bookings(client):
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 3,
         "comment": "Test booking",
@@ -242,7 +272,9 @@ async def test_get_all_bookings(client):
 
     assert create_response.status_code == 201
 
-    response = await client.get("/api/v1/bookings/")
+    response = await client.get(
+        "/api/v1/bookings/"
+    )
 
     assert response.status_code == 200
 
@@ -277,7 +309,7 @@ async def test_get_booking_by_id(client):
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 3,
         "comment": "Test booking",
@@ -333,7 +365,7 @@ async def test_update_booking_status(client):
         "service_id": service_id,
         "customer_name": "Ivan",
         "customer_phone": "+380991112233",
-        "starts_at": "2026-09-10T13:00:00+03:00",
+        "starts_at": future_datetime(),
         "guests": 4,
         "duration_hours": 3,
         "comment": "Test booking",
@@ -359,7 +391,6 @@ async def test_update_booking_status(client):
     assert data["status"] == "confirmed"
 
 
-
 @pytest.mark.asyncio
 async def test_update_booking_status_not_found(client):
     response = await client.patch(
@@ -369,9 +400,6 @@ async def test_update_booking_status_not_found(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Booking not found"
-
-
-from datetime import datetime, timezone, timedelta
 
 
 @pytest.mark.asyncio
@@ -385,6 +413,7 @@ async def test_booking_guests_must_be_positive(client):
             "minimum_duration_hours": 3,
         },
     )
+
     service_id = service_response.json()["id"]
 
     response = await client.post(
@@ -393,7 +422,7 @@ async def test_booking_guests_must_be_positive(client):
             "service_id": service_id,
             "customer_name": "Ivan",
             "customer_phone": "+380991112233",
-            "starts_at": "2026-09-20T13:00:00+03:00",
+            "starts_at": future_datetime(),
             "guests": 0,
             "duration_hours": 3,
         },
@@ -413,6 +442,7 @@ async def test_booking_duration_must_be_positive(client):
             "minimum_duration_hours": 3,
         },
     )
+
     service_id = service_response.json()["id"]
 
     response = await client.post(
@@ -421,7 +451,7 @@ async def test_booking_duration_must_be_positive(client):
             "service_id": service_id,
             "customer_name": "Ivan",
             "customer_phone": "+380991112233",
-            "starts_at": "2026-09-20T13:00:00+03:00",
+            "starts_at": future_datetime(),
             "guests": 4,
             "duration_hours": 0,
         },
@@ -441,6 +471,7 @@ async def test_booking_cannot_start_in_past(client):
             "minimum_duration_hours": 3,
         },
     )
+
     service_id = service_response.json()["id"]
 
     past_time = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -471,7 +502,11 @@ async def test_cannot_confirm_overlapping_booking(client):
             "minimum_duration_hours": 3,
         },
     )
+
     service_id = service_response.json()["id"]
+
+    first_start = future_datetime(24)
+    second_start = future_datetime(25)
 
     first_response = await client.post(
         "/api/v1/bookings/",
@@ -479,7 +514,7 @@ async def test_cannot_confirm_overlapping_booking(client):
             "service_id": service_id,
             "customer_name": "Ivan",
             "customer_phone": "+380991112233",
-            "starts_at": "2026-09-20T13:00:00+03:00",
+            "starts_at": first_start,
             "guests": 4,
             "duration_hours": 3,
         },
@@ -491,7 +526,7 @@ async def test_cannot_confirm_overlapping_booking(client):
             "service_id": service_id,
             "customer_name": "Petro",
             "customer_phone": "+380992223344",
-            "starts_at": "2026-09-20T14:00:00+03:00",
+            "starts_at": second_start,
             "guests": 2,
             "duration_hours": 3,
         },
@@ -514,4 +549,7 @@ async def test_cannot_confirm_overlapping_booking(client):
     )
 
     assert confirm_second.status_code == 409
-    assert confirm_second.json()["detail"] == "This time slot is already confirmed"
+    assert (
+        confirm_second.json()["detail"]
+        == "This time slot is already confirmed"
+    )

@@ -9,12 +9,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.request_logging import request_logging_middleware
 from app.logging_config import setup_logging
 from app.exception_handlers import global_exception_handler
+
+from app.middleware.rate_limit import rate_limit_middleware
+
+
 setup_logging()
 app = FastAPI(
     title="Vertolit Complex API",
     description="API для комплексу відпочинку",
     version="0.1.0",
 )
+
+app.middleware("http")(rate_limit_middleware)
 app.middleware("http")(request_logging_middleware)
 app.add_middleware(
     CORSMiddleware,

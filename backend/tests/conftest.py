@@ -74,5 +74,14 @@ def mock_redis():
             "app.cache.redis_client.delete",
             new_callable=AsyncMock,
         ),
+        patch(
+            "app.middleware.rate_limit.redis_client.incr",
+            new_callable=AsyncMock,
+            return_value=1,
+        ),
+        patch(
+            "app.middleware.rate_limit.redis_client.expire",
+            new_callable=AsyncMock,
+        ),
     ):
         yield
