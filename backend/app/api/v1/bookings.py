@@ -14,12 +14,14 @@ from app.schemas.booking import (
     BookingStatusUpdate,
 )
 from app.security.booking_rate_limit import booking_rate_limit
+
+from app.tasks import send_booking_notification
 from app.services.booking_service import (
     calculate_booking_end,
     has_confirmed_conflict,
     has_other_confirmed_conflict,
+    validate_booking_within_business_hours,
 )
-from app.tasks import send_booking_notification
 
 router = APIRouter(
     prefix="/bookings",
@@ -90,6 +92,12 @@ async def create_booking(
             starts_at=booking_in.starts_at,
             requested_duration_hours=booking_in.duration_hours,
         )
+
+        validate_booking_within_business_hours(
+            starts_at=booking_in.starts_at,
+            ends_at=ends_at,
+        )
+
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
