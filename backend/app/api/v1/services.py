@@ -11,10 +11,13 @@ from app.schemas.service import ServiceResponse, ServiceCreate
 from app.dependencies import SessionDep
 from datetime import date, datetime, time, timezone, timedelta
 from fastapi import Query
+from app.services.availability_service import build_free_slots
+
+from zoneinfo import ZoneInfo
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
 
-
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 # Сам endpoint
 @router.get("/", response_model=List[ServiceResponse])
 async def get_all_services(db: SessionDep):
@@ -37,11 +40,14 @@ async def create_service(service_in: ServiceCreate,
 
 
 @router.get("/{service_id}/availability")
-async def get_service_availability(service_id: int,
-                                   db: SessionDep,
-                                   date_value: date = Query(alias="date")
-                                   ):
-    result = await db.execute(select(Service).where(Service.id == service_id))
+async def get_service_availability(
+    service_id: int,
+    db: SessionDep,
+    date_value: date = Query(alias="date"),
+):
+    result = await db.execute(
+        select(Service).where(Service.id == service_id)
+    )
     service = result.scalar_one_or_none()
 
     if service is None:
@@ -53,13 +59,13 @@ async def get_service_availability(service_id: int,
     day_start = datetime.combine(
         date_value,
         time(hour=10),
-        tzinfo=timezone.utc,
+        tzinfo=KYIV_TZ,
     )
 
     day_end = datetime.combine(
         date_value,
         time(hour=22),
-        tzinfo=timezone.utc,
+        tzinfo=KYIV_TZ,
     )
 
     bookings_result = await db.execute(
@@ -70,7 +76,6 @@ async def get_service_availability(service_id: int,
             Booking.ends_at > day_start,
         )
     )
-
     bookings = bookings_result.scalars().all()
 
     blocks_result = await db.execute(
@@ -82,36 +87,10 @@ async def get_service_availability(service_id: int,
     )
     blocks = blocks_result.scalars().all()
 
-    free_slots = []
-
-    current = day_start
-
-    # Генеруємо можливі слоти від відкриття до закриття
-    while current + timedelta(hours=service.minimum_duration_hours) <= day_end:
-        slot_end = current + timedelta(
-            hours=service.minimum_duration_hours
-        )
-
-        # Чи перетинається цей слот хоча б з одним confirmed booking
-        booking_conflict = any(
-            booking.starts_at < slot_end
-            and booking.ends_at > current
-            for booking in bookings
-        )
-
-        # Чи перетинається цей слот хоча б з одним ручним блокуванням адміна
-        block_conflict = any(
-            block.starts_at < slot_end
-            and block.ends_at > current
-            for block in blocks
-        )
-
-        # Якщо конфліктів нема — слот вільний
-        if not booking_conflict and not block_conflict:
-            free_slots.append(current)
-
-        # Переходимо до наступної години
-        current += timedelta(hours=1)
-
-        return free_slots
-
+    return build_free_slots(
+        service=service,
+        day_start=day_start,
+        day_end=day_end,
+        bookings=bookings,
+        blocks=blocks,
+    )

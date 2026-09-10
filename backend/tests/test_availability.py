@@ -150,8 +150,8 @@ async def test_availability_empty_when_whole_day_blocked(client):
         "/api/v1/availability-blocks/",
         json={
             "service_id": service_id,
-            "starts_at": "2026-09-20T10:00:00+00:00",
-            "ends_at": "2026-09-20T22:00:00+00:00",
+            "starts_at": "2026-09-20T10:00:00+03:00",
+            "ends_at": "2026-09-20T22:00:00+03:00",
         },
     )
 
@@ -173,3 +173,31 @@ async def test_availability_service_not_found(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Service not found"
+
+
+@pytest.mark.asyncio
+async def test_availability_uses_kyiv_timezone(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+    service_id = service_response.json()["id"]
+
+    response = await client.get(
+        f"/api/v1/services/{service_id}/availability",
+        params={"date": "2026-09-20"},
+    )
+
+    assert response.status_code == 200
+
+    slots = response.json()
+
+    assert len(slots) > 0
+
+    # Вересень у Europe/Kyiv має UTC+03:00
+    assert slots[0] == "2026-09-20T10:00:00+03:00"
