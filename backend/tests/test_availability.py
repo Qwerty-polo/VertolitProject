@@ -1,7 +1,7 @@
 import pytest
 
 import pytest
-
+from unittest.mock import AsyncMock, patch
 
 @pytest.mark.asyncio
 async def test_create_availability_block(client):
@@ -201,3 +201,70 @@ async def test_availability_uses_kyiv_timezone(client):
 
     # Вересень у Europe/Kyiv має UTC+03:00
     assert slots[0] == "2026-09-20T10:00:00+03:00"
+
+
+@pytest.mark.asyncio
+async def test_availability_returns_cached_slots(client):
+    cached_slots = [
+        "2026-09-20T10:00:00+03:00",
+        "2026-09-20T11:00:00+03:00",
+    ]
+
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test",
+            "price": 1000,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    with patch(
+        "app.api.v1.services.redis_client.get",
+        new_callable=AsyncMock,
+        return_value='["2026-09-20T10:00:00+03:00", "2026-09-20T11:00:00+03:00"]',
+    ):
+        response = await client.get(
+            f"/api/v1/services/{service_id}/availability",
+            params={"date": "2026-09-20"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == cached_slots
+
+
+@pytest.mark.asyncio
+async def test_availability_is_saved_to_cache(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test",
+            "price": 1000,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    with (
+        patch(
+            "app.api.v1.services.redis_client.get",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.api.v1.services.redis_client.set",
+            new_callable=AsyncMock,
+        ) as set_mock,
+    ):
+        response = await client.get(
+            f"/api/v1/services/{service_id}/availability",
+            params={"date": "2026-09-20"},
+        )
+
+    assert response.status_code == 200
+    set_mock.assert_awaited_once()

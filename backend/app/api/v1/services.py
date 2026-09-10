@@ -13,6 +13,9 @@ from datetime import date, datetime, time, timezone, timedelta
 from fastapi import Query
 from app.services.availability_service import build_free_slots
 
+import json
+from app.redis import redis_client
+
 from zoneinfo import ZoneInfo
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
@@ -56,6 +59,13 @@ async def get_service_availability(
             detail="Service not found",
         )
 
+    cache_key = f"availability:{service_id}:{date_value.isoformat()}"
+
+    cached = await redis_client.get(cache_key)
+
+    if cached is not None:
+        return json.loads(cached)
+
     day_start = datetime.combine(
         date_value,
         time(hour=10),
@@ -87,10 +97,23 @@ async def get_service_availability(
     )
     blocks = blocks_result.scalars().all()
 
-    return build_free_slots(
+    free_slots = build_free_slots(
         service=service,
         day_start=day_start,
         day_end=day_end,
         bookings=bookings,
         blocks=blocks,
     )
+
+    serialized_slots = [
+        slot.isoformat()
+        for slot in free_slots
+    ]
+
+    await redis_client.set(
+        cache_key,
+        json.dumps(serialized_slots),
+        ex=60,
+    )
+
+    return serialized_slots

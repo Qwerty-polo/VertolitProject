@@ -2,12 +2,13 @@ import pytest_asyncio
 import app.models
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
+import pytest
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from unittest.mock import AsyncMock, patch
 
 from app.config import settings
 from app.database import Base
@@ -55,3 +56,23 @@ async def client():
         base_url="http://test"
     ) as client:
         yield client
+
+
+@pytest.fixture(autouse=True)
+def mock_redis():
+    with (
+        patch(
+            "app.api.v1.services.redis_client.get",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.api.v1.services.redis_client.set",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "app.cache.redis_client.delete",
+            new_callable=AsyncMock,
+        ),
+    ):
+        yield

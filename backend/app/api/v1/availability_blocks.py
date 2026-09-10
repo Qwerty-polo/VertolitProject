@@ -7,6 +7,7 @@ from app.schemas.availability_block import AvailabilityBlockCreate, Availability
 
 from app.dependencies import SessionDep
 
+from app.cache import invalidate_availability_cache
 router = APIRouter(prefix="/availability-blocks", tags=["Availability Blocks"])
 
 @router.post(
@@ -29,8 +30,16 @@ async def create_availability_block(
     block = AvailabilityBlock(**availability_block.model_dump())
 
     db.add(block)
+
     await db.commit()
     await db.refresh(block)
+
+    await invalidate_availability_cache(
+        service_id=block.service_id,
+        starts_at=block.starts_at,
+        ends_at=block.ends_at,
+    )
+
     return block
 
 

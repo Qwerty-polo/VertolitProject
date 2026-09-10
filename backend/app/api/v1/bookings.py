@@ -19,6 +19,7 @@ from app.services.booking_service import (
     has_confirmed_conflict,
     has_other_confirmed_conflict,
 )
+from app.cache import invalidate_availability_cache
 router = APIRouter(
     prefix="/bookings",
     tags=["Bookings"]
@@ -141,8 +142,14 @@ async def update_booking_status(
             )
 
     booking.status = status_in.status.value
-
+    
     await db.commit()
     await db.refresh(booking)
+
+    await invalidate_availability_cache(
+        service_id=booking.service_id,
+        starts_at=booking.starts_at,
+        ends_at=booking.ends_at,
+    )
 
     return booking
