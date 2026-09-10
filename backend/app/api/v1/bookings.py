@@ -9,7 +9,16 @@ from app.models.service import Service
 from app.schemas.booking import BookingCreate, BookingResponse, BookingStatus, BookingStatusUpdate
 
 from app.dependencies import SessionDep
-
+from app.services.booking_service import calculate_booking_end
+from app.services.booking_service import (
+    calculate_booking_end,
+    has_confirmed_conflict,
+)
+from app.services.booking_service import (
+    calculate_booking_end,
+    has_confirmed_conflict,
+    has_other_confirmed_conflict,
+)
 router = APIRouter(
     prefix="/bookings",
     tags=["Bookings"]
@@ -61,37 +70,26 @@ async def create_booking(
             detail="Service not found"
         )
 
-    duration_hours = (
-        booking_in.duration_hours
-        if booking_in.duration_hours is not None
-        else service.minimum_duration_hours
-    )
-
-    if duration_hours < service.minimum_duration_hours:
+    try:
+        ends_at = calculate_booking_end(
+            service=service,
+            starts_at=booking_in.starts_at,
+            requested_duration_hours=booking_in.duration_hours,
+        )
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Minimum booking duration is "
-                f"{service.minimum_duration_hours} hours"
-            )
+            detail=str(exc),
         )
 
-    ends_at = booking_in.starts_at + timedelta(
-        hours=duration_hours
+    conflict = await has_confirmed_conflict(
+        db=db,
+        service_id=service.id,
+        starts_at=booking_in.starts_at,
+        ends_at=ends_at,
     )
 
-    reserved = await db.execute(
-        select(Booking).where(
-            Booking.service_id == service.id,
-            Booking.starts_at < ends_at,
-            Booking.ends_at > booking_in.starts_at,
-            Booking.status == BookingStatus.confirmed.value,
-        )
-    )
-
-    conflict = reserved.scalars().first()
-
-    if conflict is not None:
+    if conflict:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This time slot is already booked"
@@ -131,22 +129,15 @@ async def update_booking_status(
         )
 
     if status_in.status == BookingStatus.confirmed:
-        reserved = await db.execute(
-            select(Booking).where(
-                Booking.id != booking.id,
-                Booking.service_id == booking.service_id,
-                Booking.starts_at < booking.ends_at,
-                Booking.ends_at > booking.starts_at,
-                Booking.status == BookingStatus.confirmed.value,
-            )
+        conflict = await has_other_confirmed_conflict(
+            db=db,
+            booking=booking,
         )
 
-        conflict = reserved.scalars().first()
-
-        if conflict is not None:
+        if conflict:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="This time slot is already confirmed"
+                detail="This time slot is already confirmed",
             )
 
     booking.status = status_in.status.value
