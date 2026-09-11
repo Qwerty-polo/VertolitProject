@@ -12,7 +12,7 @@ from app.exception_handlers import (
 from app.logging_config import setup_logging
 from app.middleware.rate_limit import rate_limit_middleware
 from app.middleware.request_logging import request_logging_middleware
-
+from app.api.v1.health import router as health_router
 
 setup_logging()
 
@@ -61,6 +61,11 @@ app.include_router(
 
 app.include_router(
     availability_blocks_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    health_router,
     prefix="/api/v1",
 )
 
