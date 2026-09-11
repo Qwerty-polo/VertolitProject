@@ -23,5 +23,9 @@ class Booking(Base):
     guests: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False,default="pending")
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reminder_sent: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=False,
+    )
 
     service: Mapped["Service"] = relationship(back_populates="bookings")

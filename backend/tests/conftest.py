@@ -94,3 +94,8 @@ def mock_redis():
         ),
     ):
         yield
+
+
+@pytest.fixture
+def test_db_session_maker():
+    return test_session_maker
