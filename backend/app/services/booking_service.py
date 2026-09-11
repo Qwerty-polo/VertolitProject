@@ -8,12 +8,17 @@ from app.models.booking import Booking
 from app.schemas.booking import BookingStatus
 from datetime import time
 from zoneinfo import ZoneInfo
+from app.config import settings
 
+KYIV_TZ = ZoneInfo(settings.timezone)
 
-KYIV_TZ = ZoneInfo("Europe/Kyiv")
+BUSINESS_START = time(
+    hour=settings.business_start_hour
+)
 
-BUSINESS_START = time(hour=10)
-BUSINESS_END = time(hour=22)
+BUSINESS_END = time(
+    hour=settings.business_end_hour
+)
 
 def validate_booking_within_business_hours(
     starts_at: datetime,

@@ -17,10 +17,12 @@ import json
 from app.redis import redis_client
 
 from zoneinfo import ZoneInfo
+from app.config import settings
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
 
-KYIV_TZ = ZoneInfo("Europe/Kyiv")
+KYIV_TZ = ZoneInfo(settings.timezone)
+
 # Сам endpoint
 @router.get("/", response_model=List[ServiceResponse])
 async def get_all_services(db: SessionDep):
@@ -113,7 +115,7 @@ async def get_service_availability(
     await redis_client.set(
         cache_key,
         json.dumps(serialized_slots),
-        ex=60,
+        ex=settings.availability_cache_ttl,
     )
 
     return serialized_slots

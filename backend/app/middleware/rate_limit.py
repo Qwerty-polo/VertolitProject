@@ -4,10 +4,10 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.redis import redis_client
+from app.config import settings
 
-
-REQUEST_LIMIT = 30
-WINDOW_SECONDS = 60
+REQUEST_LIMIT = settings.global_rate_limit
+WINDOW_SECONDS = settings.rate_limit_window_seconds
 
 
 async def rate_limit_middleware(request: Request, call_next):

@@ -11,5 +11,16 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
+    timezone: str = "Europe/Kyiv"
+
+    business_start_hour: int = 10
+    business_end_hour: int = 22
+
+    availability_cache_ttl: int = 60
+
+    global_rate_limit: int = 30
+    booking_rate_limit: int = 5
+    rate_limit_window_seconds: int = 60
 
 settings = Settings()
+

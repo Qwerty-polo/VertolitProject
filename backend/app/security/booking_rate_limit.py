@@ -3,10 +3,10 @@ import time
 from fastapi import HTTPException, Request, status
 
 from app.redis import redis_client
+from app.config import settings
 
-
-BOOKING_LIMIT = 5
-WINDOW_SECONDS = 60
+BOOKING_LIMIT = settings.booking_rate_limit
+WINDOW_SECONDS = settings.rate_limit_window_seconds
 
 
 async def booking_rate_limit(request: Request) -> None:
