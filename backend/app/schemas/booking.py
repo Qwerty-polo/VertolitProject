@@ -12,32 +12,34 @@ class BookingCreate(BaseModel):
     )
 
     customer_name: str = Field(
+        min_length=2,
+        max_length=100,
         description="Ім'я клієнта",
         examples=["Ivan"],
     )
 
     customer_phone: str = Field(
-        description="Номер телефону клієнта",
+        min_length=7,
+        max_length=30,
+        description="Телефон клієнта",
         examples=["+380991112233"],
     )
 
     starts_at: datetime = Field(
-        description=(
-            "Дата і час початку бронювання у форматі ISO 8601 "
-            "з timezone. Наприклад: 2026-09-20T13:00:00+03:00"
-        ),
+        description="Дата і час початку бронювання з timezone",
         examples=["2026-09-20T13:00:00+03:00"],
     )
 
     guests: int = Field(
         ge=1,
-        description="Кількість гостей. Мінімум 1",
+        description="Кількість гостей",
         examples=[4],
     )
 
     comment: str | None = Field(
         default=None,
-        description="Необов'язковий коментар до бронювання",
+        max_length=500,
+        description="Коментар до бронювання",
         examples=["Birthday"],
     )
 
@@ -45,16 +47,16 @@ class BookingCreate(BaseModel):
         default=None,
         ge=1,
         description=(
-            "Тривалість бронювання в годинах. "
-            "Якщо не передати, буде використана мінімальна "
-            "тривалість цієї послуги"
+            "Тривалість бронювання у годинах. "
+            "Якщо не передано — використовується мінімальна "
+            "тривалість послуги."
         ),
         examples=[3],
     )
 
     @field_validator("starts_at")
     @classmethod
-    def validate_starts_at(cls, value: datetime):
+    def validate_starts_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None:
             raise ValueError(
                 "Timezone is required. "
@@ -69,11 +71,13 @@ class BookingCreate(BaseModel):
         return value
 
 
+
 class BookingStatus(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
     cancelled = "cancelled"
     completed = "completed"
+
 
 class BookingResponse(BaseModel):
     id: int
@@ -87,6 +91,7 @@ class BookingResponse(BaseModel):
     comment: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus

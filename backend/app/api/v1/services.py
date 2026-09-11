@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from typing import List
 
@@ -33,7 +33,11 @@ async def get_all_services(db: SessionDep):
     return services
 
 
-@router.post("/", response_model=ServiceResponse)
+@router.post(
+    "/",
+    response_model=ServiceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_service(service_in: ServiceCreate,
                          db: SessionDep):
     service = Service(**service_in.model_dump())

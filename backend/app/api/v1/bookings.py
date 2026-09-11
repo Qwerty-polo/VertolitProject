@@ -29,8 +29,13 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[BookingResponse])
-async def get_all_bookings(db: SessionDep):
+@router.get(
+    "/",
+    response_model=list[BookingResponse],
+)
+async def get_all_bookings(
+    db: SessionDep,
+):
     result = await db.execute(
         select(Booking)
     )
@@ -40,7 +45,22 @@ async def get_all_bookings(db: SessionDep):
     return bookings
 
 
-@router.get("/{booking_id}", response_model=BookingResponse)
+@router.get(
+    "/{booking_id}",
+    response_model=BookingResponse,
+    responses={
+        404: {
+            "description": "Booking not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Booking not found"
+                    }
+                }
+            },
+        }
+    },
+)
 async def get_booking(
     booking_id: int,
     db: SessionDep,
@@ -67,6 +87,65 @@ async def get_booking(
     response_model=BookingResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(booking_rate_limit)],
+    responses={
+        400: {
+            "description": "Invalid booking parameters",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "business_hours": {
+                            "summary": "Outside business hours",
+                            "value": {
+                                "detail": "Booking cannot start before 10:00"
+                            },
+                        },
+                        "minimum_duration": {
+                            "summary": "Duration is too short",
+                            "value": {
+                                "detail": "Minimum booking duration is 3 hours"
+                            },
+                        },
+                        "maximum_duration": {
+                            "summary": "Duration is too long",
+                            "value": {
+                                "detail": "Maximum booking duration is 12 hours"
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Service not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Service not found"
+                    }
+                }
+            },
+        },
+        409: {
+            "description": "Time slot conflict",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "This time slot is already booked"
+                    }
+                }
+            },
+        },
+        429: {
+            "description": "Booking rate limit exceeded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Too many booking attempts"
+                    }
+                }
+            },
+        },
+    },
 )
 async def create_booking(
     booking_in: BookingCreate,
@@ -143,6 +222,28 @@ async def create_booking(
 @router.patch(
     "/{booking_id}/status",
     response_model=BookingResponse,
+    responses={
+        404: {
+            "description": "Booking not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Booking not found"
+                    }
+                }
+            },
+        },
+        409: {
+            "description": "Confirmed booking conflict",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "This time slot is already confirmed"
+                    }
+                }
+            },
+        },
+    },
 )
 async def update_booking_status(
     booking_id: int,
