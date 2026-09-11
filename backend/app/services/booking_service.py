@@ -1,12 +1,10 @@
-from datetime import datetime, timedelta
-
 from app.models.service import Service
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import Booking
 from app.schemas.booking import BookingStatus
-from datetime import time
+from datetime import datetime, timedelta, time
 from zoneinfo import ZoneInfo
 from app.config import settings
 
@@ -34,14 +32,15 @@ def validate_booking_within_business_hours(
 
     if local_start.time() < BUSINESS_START:
         raise ValueError(
-            "Booking cannot start before 10:00"
+            f"Booking cannot start before "
+            f"{BUSINESS_START.strftime('%H:%M')}"
         )
 
     if local_end.time() > BUSINESS_END:
         raise ValueError(
-            "Booking cannot end after 22:00"
+            f"Booking cannot end after "
+            f"{BUSINESS_END.strftime('%H:%M')}"
         )
-
 
 def calculate_booking_end(
     service: Service,
@@ -56,10 +55,15 @@ def calculate_booking_end(
 
     if duration_hours < service.minimum_duration_hours:
         raise ValueError(
-            f"Minimum booking duration is "
-            f"{service.minimum_duration_hours} hours"
+            f"Мінімальне бронювання: "
+            f"{service.minimum_duration_hours} годин"
         )
 
+    if duration_hours > settings.max_booking_duration_hours:
+        raise ValueError(
+            f"Максимальне бронювання: "
+            f"{settings.max_booking_duration_hours} годин"
+        )
 
     return starts_at + timedelta(hours=duration_hours)
 

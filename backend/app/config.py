@@ -6,11 +6,6 @@ class Settings(BaseSettings):
     test_database_url: str
     redis_url: str
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
-
     timezone: str = "Europe/Kyiv"
 
     business_start_hour: int = 10
@@ -21,6 +16,13 @@ class Settings(BaseSettings):
     global_rate_limit: int = 30
     booking_rate_limit: int = 5
     rate_limit_window_seconds: int = 60
+
+    max_booking_duration_hours: int = 12
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
 settings = Settings()
 

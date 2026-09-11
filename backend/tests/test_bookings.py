@@ -128,8 +128,8 @@ async def test_create_booking_duration_too_short(client):
 
     assert response.status_code == 400
     assert (
-        response.json()["detail"]
-        == "Minimum booking duration is 3 hours"
+            response.json()["detail"]
+            == "Мінімальне бронювання: 3 годин"
     )
 
 
@@ -554,7 +554,6 @@ async def test_cannot_confirm_overlapping_booking(client):
         == "This time slot is already confirmed"
     )
 
-
 @pytest.mark.asyncio
 async def test_create_booking_sends_celery_notification(client):
     service_response = await client.post(
@@ -606,3 +605,41 @@ async def test_create_booking_sends_celery_notification(client):
     )
 
     assert celery_starts_at == response_starts_at
+
+
+@pytest.mark.asyncio
+async def test_create_booking_duration_too_long(client):
+    service_payload = {
+        "name": "Sauna",
+        "description": "Test sauna",
+        "price": 1500,
+        "minimum_duration_hours": 3,
+    }
+
+    service_response = await client.post(
+        "/api/v1/services/",
+        json=service_payload,
+    )
+
+    service_id = service_response.json()["id"]
+
+    booking_payload = {
+        "service_id": service_id,
+        "customer_name": "Ivan",
+        "customer_phone": "+380991112233",
+        "starts_at": future_datetime(),
+        "guests": 4,
+        "duration_hours": 13,
+        "comment": "Too long",
+    }
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json=booking_payload,
+    )
+
+    assert response.status_code == 400
+    assert (
+        response.json()["detail"]
+        == "Максимальне бронювання: 12 годин"
+    )

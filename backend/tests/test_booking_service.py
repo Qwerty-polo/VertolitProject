@@ -1,13 +1,11 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from app.models.service import Service
-from app.services.booking_service import calculate_booking_end
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 from app.services.booking_service import (
+    calculate_booking_end,
     validate_booking_within_business_hours,
 )
 
@@ -72,7 +70,7 @@ def test_calculate_booking_end_rejects_short_duration():
 
     with pytest.raises(
         ValueError,
-        match="Minimum booking duration is 3 hours",
+            match="Мінімальне бронювання: 3 годин",
     ):
         calculate_booking_end(
             service=service,
@@ -151,3 +149,31 @@ def test_booking_can_end_exactly_at_closing_time():
         starts_at=starts_at,
         ends_at=ends_at,
     )
+
+
+def test_calculate_booking_end_rejects_too_long_duration():
+    service = Service(
+        name="Sauna",
+        description="Test",
+        price=1500,
+        minimum_duration_hours=3,
+    )
+
+    starts_at = datetime(
+        2026,
+        9,
+        20,
+        10,
+        0,
+        tzinfo=KYIV_TZ,
+    )
+
+    with pytest.raises(
+        ValueError,
+            match="Максимальне бронювання: 12 годин",
+    ):
+        calculate_booking_end(
+            service=service,
+            starts_at=starts_at,
+            requested_duration_hours=13,
+        )

@@ -9,7 +9,7 @@ from app.models.service import Service
 from app.schemas.booking import BookingStatus
 from app.schemas.service import ServiceResponse, ServiceCreate
 from app.dependencies import SessionDep
-from datetime import date, datetime, time, timezone, timedelta
+from datetime import date, datetime, time
 from fastapi import Query
 from app.services.availability_service import build_free_slots
 
@@ -70,13 +70,13 @@ async def get_service_availability(
 
     day_start = datetime.combine(
         date_value,
-        time(hour=10),
+        time(hour=settings.business_start_hour),
         tzinfo=KYIV_TZ,
     )
 
     day_end = datetime.combine(
         date_value,
-        time(hour=22),
+        time(hour=settings.business_end_hour),
         tzinfo=KYIV_TZ,
     )
 
