@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
@@ -14,14 +12,15 @@ from app.schemas.booking import (
     BookingStatusUpdate,
 )
 from app.security.booking_rate_limit import booking_rate_limit
-
-from app.tasks import send_booking_notification
 from app.services.booking_service import (
     calculate_booking_end,
     has_confirmed_conflict,
     has_other_confirmed_conflict,
     validate_booking_within_business_hours,
+    validate_minimum_advance_booking,
 )
+from app.tasks import send_booking_notification
+
 
 router = APIRouter(
     prefix="/bookings",
@@ -111,6 +110,12 @@ async def get_booking(
                                 "detail": "Maximum booking duration is 12 hours"
                             },
                         },
+                        "minimum_advance": {
+                            "summary": "Booking is too soon",
+                            "value": {
+                                "detail": "Booking must be made at least 2 hours in advance"
+                            },
+                        },
                     }
                 }
             },
@@ -172,6 +177,10 @@ async def create_booking(
             requested_duration_hours=booking_in.duration_hours,
         )
 
+        validate_minimum_advance_booking(
+            starts_at=booking_in.starts_at,
+        )
+
         validate_booking_within_business_hours(
             starts_at=booking_in.starts_at,
             ends_at=ends_at,
@@ -181,7 +190,7 @@ async def create_booking(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
-        )
+        ) from exc
 
     conflict = await has_confirmed_conflict(
         db=db,

@@ -7,14 +7,25 @@ from unittest.mock import patch
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 
-def future_datetime(hours_from_now: int = 24) -> str:
-    value = datetime.now(KYIV_TZ) + timedelta(hours=hours_from_now)
+def future_datetime(
+    hours_from_now: int = 24,
+) -> str:
+    now = datetime.now(KYIV_TZ)
 
-    return value.replace(
+    safe_base = (
+        now + timedelta(days=1)
+    ).replace(
+        hour=12,
         minute=0,
         second=0,
         microsecond=0,
-    ).isoformat()
+    )
+
+    value = safe_base + timedelta(
+        hours=hours_from_now - 24
+    )
+
+    return value.isoformat()
 
 
 @pytest.mark.asyncio

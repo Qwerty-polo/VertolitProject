@@ -4,9 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import Booking
 from app.schemas.booking import BookingStatus
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 from zoneinfo import ZoneInfo
 from app.config import settings
+from datetime import datetime, timedelta, timezone
+
 
 KYIV_TZ = ZoneInfo(settings.timezone)
 
@@ -101,3 +103,20 @@ async def has_other_confirmed_conflict(
     )
 
     return result.scalars().first() is not None
+
+
+def validate_minimum_advance_booking(
+    starts_at: datetime,
+) -> None:
+    minimum_start = (
+        datetime.now(timezone.utc)
+        + timedelta(
+            hours=settings.minimum_advance_booking_hours
+        )
+    )
+
+    if starts_at <= minimum_start:
+        raise ValueError(
+            f"Booking must be made at least "
+            f"{settings.minimum_advance_booking_hours} hours in advance"
+        )

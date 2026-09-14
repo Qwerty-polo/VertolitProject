@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     availability_cache_ttl: int = 60
 
+    minimum_advance_booking_hours: int = 2
+
     global_rate_limit: int = 30
     booking_rate_limit: int = 5
     rate_limit_window_seconds: int = 60
