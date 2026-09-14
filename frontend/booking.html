@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Бронювання — Вертоліт-комплекс</title>
+
+  <meta
+    name="description"
+    content="Забронюйте відпочинок у Вертоліт-комплексі."
+  >
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=PT+Sans:wght@400;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/booking-page.css">
+</head>
+
+<body class="booking-page">
+
+  <header class="booking-header">
+    <div class="container booking-header__inner">
+
+      <a
+        href="index.html"
+        class="booking-header__brand"
+      >
+        Вертоліт-комплекс
+      </a>
+
+      <a
+        href="index.html"
+        class="booking-header__back"
+      >
+        ← На головну
+      </a>
+
+    </div>
+  </header>
+
+
+  <main class="booking-main">
+
+    <section class="booking-panel">
+
+      <div class="booking-panel__intro">
+        <span class="booking-panel__eyebrow">
+          Онлайн-бронювання
+        </span>
+
+        <h1 class="booking-panel__title">
+          Забронювати відпочинок
+        </h1>
+
+        <p class="booking-panel__text">
+          Оберіть послугу, дату та доступний час.
+          Після відправлення заявки бронювання очікуватиме підтвердження.
+        </p>
+      </div>
+
+
+      <form
+        class="booking-form"
+        id="bookingForm"
+      >
+
+        <div class="booking-form__group booking-form__group--full">
+
+          <label for="bookingService">
+            Послуга
+          </label>
+
+          <select
+            id="bookingService"
+            required
+          >
+            <option value="">
+              Оберіть послугу
+            </option>
+          </select>
+
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingDate">
+            Дата
+          </label>
+
+          <input
+            type="date"
+            id="bookingDate"
+            required
+          >
+
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingTime">
+            Доступний час
+          </label>
+
+          <select
+            id="bookingTime"
+            required
+            disabled
+          >
+            <option value="">
+              Спочатку оберіть дату
+            </option>
+          </select>
+
+        </div>
+
+
+        <div class="booking-form__divider">
+          Ваші дані
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingName">
+            Ім'я
+          </label>
+
+          <input
+            type="text"
+            id="bookingName"
+            minlength="2"
+            maxlength="100"
+            placeholder="Іван"
+            required
+          >
+
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingPhone">
+            Телефон
+          </label>
+
+          <input
+            type="tel"
+            id="bookingPhone"
+            minlength="7"
+            maxlength="30"
+            placeholder="+380..."
+            required
+          >
+
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingGuests">
+            Кількість гостей
+          </label>
+
+          <input
+            type="number"
+            id="bookingGuests"
+            min="1"
+            value="2"
+            required
+          >
+
+        </div>
+
+
+        <div class="booking-form__group">
+
+          <label for="bookingDuration">
+            Тривалість, годин
+          </label>
+
+          <input
+            type="number"
+            id="bookingDuration"
+            min="1"
+            placeholder="Наприклад 3"
+          >
+
+        </div>
+
+
+        <div class="booking-form__group booking-form__group--full">
+
+          <label for="bookingComment">
+            Коментар
+          </label>
+
+          <textarea
+            id="bookingComment"
+            maxlength="500"
+            rows="4"
+            placeholder="Побажання або додаткова інформація..."
+          ></textarea>
+
+        </div>
+
+
+        <div class="booking-form__group booking-form__group--full">
+
+          <button
+            type="submit"
+            class="btn btn--accent btn--lg booking-form__submit"
+          >
+            Підтвердити бронювання
+          </button>
+
+        </div>
+
+
+        <p
+          class="booking-form__message"
+          id="bookingMessage"
+          aria-live="polite"
+        ></p>
+
+      </form>
+
+    </section>
+
+  </main>
+
+
+    <script src="js/booking.js"></script>
+</body>
+</html>
