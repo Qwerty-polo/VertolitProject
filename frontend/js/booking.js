@@ -72,8 +72,36 @@ async function loadServices() {
       option.dataset.minimumDuration =
         service.minimum_duration_hours;
 
+      option.dataset.serviceName =
+        service.name;
+
       serviceSelect.appendChild(option);
     });
+
+    const params =
+      new URLSearchParams(window.location.search);
+
+    const requestedService =
+      params.get('service');
+
+    if (requestedService) {
+      const matchingOption =
+        Array.from(serviceSelect.options)
+          .find(
+            (option) =>
+              option.dataset.serviceName ===
+              requestedService
+          );
+
+      if (matchingOption) {
+        serviceSelect.value =
+          matchingOption.value;
+
+        serviceSelect.dispatchEvent(
+          new Event('change')
+        );
+      }
+    }
 
   } catch (error) {
     showMessage(
