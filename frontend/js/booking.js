@@ -11,13 +11,48 @@ const durationInput = document.getElementById('bookingDuration');
 const commentInput = document.getElementById('bookingComment');
 const messageEl = document.getElementById('bookingMessage');
 
+const submitButton = bookingForm.querySelector(
+  'button[type="submit"]'
+);
+
+
+function showMessage(message, isError = false) {
+  messageEl.textContent = message;
+
+  messageEl.classList.toggle(
+    'is-error',
+    isError
+  );
+}
+
+
+function setMinimumBookingDate() {
+  const today = new Date();
+
+  const year = today.getFullYear();
+
+  const month = String(
+    today.getMonth() + 1
+  ).padStart(2, '0');
+
+  const day = String(
+    today.getDate()
+  ).padStart(2, '0');
+
+  dateInput.min = `${year}-${month}-${day}`;
+}
+
 
 async function loadServices() {
   try {
-    const response = await fetch(`${API_URL}/services/`);
+    const response = await fetch(
+      `${API_URL}/services/`
+    );
 
     if (!response.ok) {
-      throw new Error('Failed to load services');
+      throw new Error(
+        'Failed to load services'
+      );
     }
 
     const services = await response.json();
@@ -26,9 +61,11 @@ async function loadServices() {
       '<option value="">Оберіть послугу</option>';
 
     services.forEach((service) => {
-      const option = document.createElement('option');
+      const option =
+        document.createElement('option');
 
       option.value = service.id;
+
       option.textContent =
         `${service.name} — ${service.price} грн`;
 
@@ -37,6 +74,7 @@ async function loadServices() {
 
       serviceSelect.appendChild(option);
     });
+
   } catch (error) {
     showMessage(
       'Не вдалося завантажити послуги.',
@@ -51,10 +89,16 @@ async function loadAvailability() {
   const date = dateInput.value;
 
   if (!serviceId || !date) {
+    timeSelect.disabled = true;
+
+    timeSelect.innerHTML =
+      '<option value="">Спочатку оберіть послугу та дату</option>';
+
     return;
   }
 
   timeSelect.disabled = true;
+
   timeSelect.innerHTML =
     '<option value="">Завантаження...</option>';
 
@@ -64,12 +108,12 @@ async function loadAvailability() {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to load availability');
+      throw new Error(
+        'Failed to load availability'
+      );
     }
 
     const slots = await response.json();
-
-    timeSelect.innerHTML = '';
 
     if (slots.length === 0) {
       timeSelect.innerHTML =
@@ -82,22 +126,27 @@ async function loadAvailability() {
       '<option value="">Оберіть час</option>';
 
     slots.forEach((slot) => {
-      const option = document.createElement('option');
+      const option =
+        document.createElement('option');
 
       option.value = slot;
 
       const slotDate = new Date(slot);
 
       option.textContent =
-        slotDate.toLocaleTimeString('uk-UA', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        slotDate.toLocaleTimeString(
+          'uk-UA',
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+          }
+        );
 
       timeSelect.appendChild(option);
     });
 
     timeSelect.disabled = false;
+
   } catch (error) {
     timeSelect.innerHTML =
       '<option value="">Помилка завантаження</option>';
@@ -110,26 +159,31 @@ async function loadAvailability() {
 }
 
 
-function showMessage(message, isError = false) {
-  messageEl.textContent = message;
-  messageEl.classList.toggle(
-    'is-error',
-    isError
-  );
-}
+serviceSelect.addEventListener(
+  'change',
+  () => {
+    const selectedOption =
+      serviceSelect.options[
+        serviceSelect.selectedIndex
+      ];
 
+    const minimumDuration =
+      selectedOption?.dataset.minimumDuration;
 
-serviceSelect.addEventListener('change', () => {
-  const selectedOption =
-    serviceSelect.options[serviceSelect.selectedIndex];
+    if (minimumDuration) {
+      durationInput.value =
+        minimumDuration;
 
-  if (selectedOption?.dataset.minimumDuration) {
-    durationInput.value =
-      selectedOption.dataset.minimumDuration;
+      durationInput.min =
+        minimumDuration;
+    } else {
+      durationInput.value = '';
+      durationInput.min = '1';
+    }
+
+    loadAvailability();
   }
-
-  loadAvailability();
-});
+);
 
 
 dateInput.addEventListener(
@@ -143,18 +197,37 @@ bookingForm.addEventListener(
   async (event) => {
     event.preventDefault();
 
-    showMessage('Створюємо бронювання...');
+    showMessage(
+      'Створюємо бронювання...'
+    );
+
+    submitButton.disabled = true;
+    submitButton.textContent =
+      'Відправляємо...';
 
     const payload = {
-      service_id: Number(serviceSelect.value),
-      customer_name: nameInput.value.trim(),
-      customer_phone: phoneInput.value.trim(),
-      starts_at: timeSelect.value,
-      guests: Number(guestsInput.value),
-      comment: commentInput.value.trim() || null,
-      duration_hours: durationInput.value
-        ? Number(durationInput.value)
-        : null,
+      service_id:
+        Number(serviceSelect.value),
+
+      customer_name:
+        nameInput.value.trim(),
+
+      customer_phone:
+        phoneInput.value.trim(),
+
+      starts_at:
+        timeSelect.value,
+
+      guests:
+        Number(guestsInput.value),
+
+      comment:
+        commentInput.value.trim() || null,
+
+      duration_hours:
+        durationInput.value
+          ? Number(durationInput.value)
+          : null,
     };
 
     try {
@@ -162,19 +235,45 @@ bookingForm.addEventListener(
         `${API_URL}/bookings/`,
         {
           method: 'POST',
+
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
+
           body: JSON.stringify(payload),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.detail || 'Booking failed'
-        );
+        let message =
+          'Не вдалося створити бронювання.';
+
+        if (response.status === 400) {
+          message =
+            data.detail ||
+            'Некоректні дані бронювання.';
+        }
+
+        if (response.status === 409) {
+          message =
+            'Цей час уже зайнятий. Оберіть інший слот.';
+        }
+
+        if (response.status === 422) {
+          message =
+            'Перевірте правильність заповнення форми.';
+        }
+
+        if (response.status === 429) {
+          message =
+            'Забагато спроб. Спробуйте трохи пізніше.';
+        }
+
+        throw new Error(message);
       }
 
       showMessage(
@@ -183,18 +282,28 @@ bookingForm.addEventListener(
 
       bookingForm.reset();
 
+      durationInput.min = '1';
+
       timeSelect.disabled = true;
+
       timeSelect.innerHTML =
-        '<option value="">Спочатку оберіть дату</option>';
+        '<option value="">Спочатку оберіть послугу та дату</option>';
 
     } catch (error) {
       showMessage(
         error.message,
         true
       );
+
+    } finally {
+      submitButton.disabled = false;
+
+      submitButton.textContent =
+        'Підтвердити бронювання';
     }
   }
 );
 
 
+setMinimumBookingDate();
 loadServices();
