@@ -10,6 +10,8 @@
     name="description"
     content="Забронюйте відпочинок у Вертоліт-комплексі."
   >
+  <meta name="theme-color" content="#17130E">
+  <link rel="icon" type="image/jpeg" href="assets/images/logo.jpg">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -196,10 +198,11 @@
           </label>
 
           <input
-            type="number"
-            id="bookingDuration"
-            min="1"
-            placeholder="Наприклад 3"
+                  type="number"
+                  id="bookingDuration"
+                  min="1"
+                  max="12"
+                  placeholder="Наприклад 3"
           >
 
         </div>
@@ -227,7 +230,7 @@
             type="submit"
             class="btn btn--accent btn--lg booking-form__submit"
           >
-            Підтвердити бронювання
+            Надіслати заявку
           </button>
 
         </div>

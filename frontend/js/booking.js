@@ -167,6 +167,7 @@ async function loadAvailability() {
           {
             hour: '2-digit',
             minute: '2-digit',
+            timeZone: 'Europe/Kyiv',
           }
         );
 
@@ -226,12 +227,12 @@ bookingForm.addEventListener(
     event.preventDefault();
 
     showMessage(
-      'Створюємо бронювання...'
+      'Надсилаємо заявку...'
     );
 
     submitButton.disabled = true;
     submitButton.textContent =
-      'Відправляємо...';
+      'Надсилаємо...';
 
     const payload = {
       service_id:
@@ -273,8 +274,13 @@ bookingForm.addEventListener(
         }
       );
 
-      const data =
-        await response.json();
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
         let message =
@@ -305,7 +311,7 @@ bookingForm.addEventListener(
       }
 
       showMessage(
-        'Бронювання створено. Очікуйте підтвердження.'
+        'Заявку на бронювання створено. Очікуйте підтвердження.'
       );
 
       bookingForm.reset();
@@ -319,7 +325,8 @@ bookingForm.addEventListener(
 
     } catch (error) {
       showMessage(
-        error.message,
+        error.message ||
+        'Не вдалося створити бронювання.',
         true
       );
 
@@ -327,7 +334,7 @@ bookingForm.addEventListener(
       submitButton.disabled = false;
 
       submitButton.textContent =
-        'Підтвердити бронювання';
+        'Надіслати заявку';
     }
   }
 );
