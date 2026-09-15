@@ -19,12 +19,17 @@ class Settings(BaseSettings):
     booking_rate_limit: int = 5
     rate_limit_window_seconds: int = 60
 
+
     max_booking_duration_hours: int = 12
+
+    admin_password: str
+    admin_session_ttl_seconds: int = 43200
+    admin_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
     )
 
-settings = Settings()
 
+settings = Settings()

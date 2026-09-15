@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+)
 from sqlalchemy import select
 from typing import List
 
@@ -18,6 +23,8 @@ from app.redis import redis_client
 
 from zoneinfo import ZoneInfo
 from app.config import settings
+
+from app.security.admin_auth import require_admin
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
 
@@ -37,6 +44,7 @@ async def get_all_services(db: SessionDep):
     "/",
     response_model=ServiceResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin)],
 )
 async def create_service(service_in: ServiceCreate,
                          db: SessionDep):

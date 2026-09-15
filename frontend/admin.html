@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>
+    Адмін-панель — Вертоліт-комплекс
+  </title>
+
+  <meta
+    name="theme-color"
+    content="#17130E"
+  >
+
+  <link
+    rel="icon"
+    type="image/jpeg"
+    href="assets/images/logo.jpg"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=PT+Sans:wght@400;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="css/variables.css"
+  >
+
+  <link
+    rel="stylesheet"
+    href="css/base.css"
+  >
+
+  <link
+    rel="stylesheet"
+    href="css/admin.css"
+  >
+</head>
+
+
+<body class="admin-page">
+
+
+<header class="admin-header">
+  <div class="container admin-header__inner">
+
+    <a
+      href="index.html"
+      class="admin-header__brand"
+    >
+      <img
+        src="assets/images/logo.jpg"
+        alt=""
+        class="admin-header__logo"
+      >
+
+      <span>
+        Вертоліт-комплекс
+      </span>
+    </a>
+
+
+    <a
+      href="index.html"
+      class="admin-header__back"
+    >
+      ← На сайт
+    </a>
+
+  </div>
+</header>
+
+
+<main class="admin-main">
+
+  <!-- =========================
+       LOGIN
+       ========================= -->
+
+  <section
+    class="admin-login"
+    id="adminLogin"
+  >
+
+    <div class="admin-login__card">
+
+      <img
+        src="assets/images/logo.jpg"
+        alt=""
+        class="admin-login__logo"
+      >
+
+      <span class="admin-intro__eyebrow">
+        Адміністрування
+      </span>
+
+      <h1 class="admin-login__title">
+        Вхід
+      </h1>
+
+      <p class="admin-login__text">
+        Введіть пароль адміністратора,
+        щоб керувати бронюваннями.
+      </p>
+
+
+      <form
+        class="admin-login__form"
+        id="adminLoginForm"
+      >
+
+        <div class="admin-field">
+
+          <label for="adminPassword">
+            Пароль
+          </label>
+
+          <input
+            type="password"
+            id="adminPassword"
+            autocomplete="current-password"
+            placeholder="Введіть пароль"
+            required
+          >
+
+        </div>
+
+
+        <button
+          type="submit"
+          class="admin-login__button"
+          id="adminLoginButton"
+        >
+          Увійти
+        </button>
+
+
+        <p
+          class="admin-message"
+          id="loginMessage"
+          aria-live="polite"
+        ></p>
+
+      </form>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       DASHBOARD
+       ========================= -->
+
+  <section
+    id="adminDashboard"
+    hidden
+  >
+
+    <div class="container">
+
+      <div class="admin-intro">
+
+        <div>
+
+          <span class="admin-intro__eyebrow">
+            Керування
+          </span>
+
+          <h1>
+            Бронювання
+          </h1>
+
+          <p>
+            Переглядайте заявки та
+            змінюйте їх статус.
+          </p>
+
+        </div>
+
+
+        <div class="admin-header-actions">
+
+          <button
+            type="button"
+            class="admin-refresh"
+            id="refreshBookings"
+          >
+            Оновити
+          </button>
+
+          <button
+            type="button"
+            class="admin-logout"
+            id="adminLogout"
+          >
+            Вийти
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <section class="admin-stats">
+
+        <article class="admin-stat">
+          <span>
+            Очікують
+          </span>
+
+          <strong id="pendingCount">
+            0
+          </strong>
+        </article>
+
+
+        <article class="admin-stat">
+          <span>
+            Підтверджені
+          </span>
+
+          <strong id="confirmedCount">
+            0
+          </strong>
+        </article>
+
+
+        <article class="admin-stat">
+          <span>
+            Завершені
+          </span>
+
+          <strong id="completedCount">
+            0
+          </strong>
+        </article>
+
+
+        <article class="admin-stat">
+          <span>
+            Скасовані
+          </span>
+
+          <strong id="cancelledCount">
+            0
+          </strong>
+        </article>
+
+      </section>
+
+
+      <section class="admin-toolbar">
+
+        <div class="admin-field">
+
+          <label for="statusFilter">
+            Статус
+          </label>
+
+          <select id="statusFilter">
+
+            <option value="">
+              Усі
+            </option>
+
+            <option value="pending">
+              Очікують
+            </option>
+
+            <option value="confirmed">
+              Підтверджені
+            </option>
+
+            <option value="completed">
+              Завершені
+            </option>
+
+            <option value="cancelled">
+              Скасовані
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div class="admin-field">
+
+          <label for="dateFilter">
+            Дата
+          </label>
+
+          <input
+            type="date"
+            id="dateFilter"
+          >
+
+        </div>
+
+
+        <div
+          class="admin-field
+                 admin-field--search"
+        >
+
+          <label for="bookingSearch">
+            Пошук
+          </label>
+
+          <input
+            type="search"
+            id="bookingSearch"
+            placeholder="Ім'я, телефон або послуга"
+          >
+
+        </div>
+
+      </section>
+
+
+      <p
+        class="admin-message"
+        id="adminMessage"
+        aria-live="polite"
+      ></p>
+
+
+      <section class="admin-table-wrapper">
+
+        <table class="admin-table">
+
+          <thead>
+
+            <tr>
+              <th>ID</th>
+              <th>Послуга</th>
+              <th>Клієнт</th>
+              <th>Дата і час</th>
+              <th>Гості</th>
+              <th>Тривалість</th>
+              <th>Статус</th>
+              <th>Дії</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody id="bookingsTableBody">
+          </tbody>
+
+        </table>
+
+
+        <div
+          class="admin-empty"
+          id="adminEmpty"
+          hidden
+        >
+          Бронювань не знайдено.
+        </div>
+
+      </section>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<script src="js/admin.js"></script>
+
+</body>
+</html>

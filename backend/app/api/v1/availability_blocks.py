@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 from sqlalchemy import select
 
 from app.cache import invalidate_availability_cache
@@ -9,7 +14,7 @@ from app.schemas.availability_block import (
     AvailabilityBlockCreate,
     AvailabilityBlockResponse,
 )
-
+from app.security.admin_auth import require_admin
 
 router = APIRouter(
     prefix="/availability-blocks",
@@ -21,6 +26,7 @@ router = APIRouter(
     "/",
     response_model=AvailabilityBlockResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin)],
     responses={
         404: {
             "description": "Service not found",
@@ -73,6 +79,7 @@ async def create_availability_block(
 @router.get(
     "/",
     response_model=list[AvailabilityBlockResponse],
+    dependencies=[Depends(require_admin)],
 )
 async def get_availability_blocks(
     db: SessionDep,

@@ -20,7 +20,7 @@ from app.services.booking_service import (
     validate_minimum_advance_booking,
 )
 from app.tasks import send_booking_notification
-
+from app.security.admin_auth import require_admin
 
 router = APIRouter(
     prefix="/bookings",
@@ -31,6 +31,7 @@ router = APIRouter(
 @router.get(
     "/",
     response_model=list[BookingResponse],
+    dependencies=[Depends(require_admin)],
 )
 async def get_all_bookings(
     db: SessionDep,
@@ -47,6 +48,7 @@ async def get_all_bookings(
 @router.get(
     "/{booking_id}",
     response_model=BookingResponse,
+    dependencies=[Depends(require_admin)],
     responses={
         404: {
             "description": "Booking not found",
@@ -60,25 +62,6 @@ async def get_all_bookings(
         }
     },
 )
-async def get_booking(
-    booking_id: int,
-    db: SessionDep,
-):
-    result = await db.execute(
-        select(Booking).where(
-            Booking.id == booking_id
-        )
-    )
-
-    booking = result.scalar_one_or_none()
-
-    if booking is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Booking not found",
-        )
-
-    return booking
 
 
 @router.post(
@@ -231,6 +214,7 @@ async def create_booking(
 @router.patch(
     "/{booking_id}/status",
     response_model=BookingResponse,
+    dependencies=[Depends(require_admin)],
     responses={
         404: {
             "description": "Booking not found",
