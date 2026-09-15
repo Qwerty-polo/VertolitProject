@@ -1,11 +1,19 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text, DateTime, Integer
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
-from typing import TYPE_CHECKING
 
 #Для того шоб не було circular import
 if TYPE_CHECKING:
@@ -29,3 +37,25 @@ class Booking(Base):
     )
 
     service: Mapped["Service"] = relationship(back_populates="bookings")
+
+    __table_args__ = (
+        ExcludeConstraint(
+            (service_id, "="),
+            (
+                func.tstzrange(
+                    starts_at,
+                    ends_at,
+                    "[)",
+                ),
+                "&&",
+            ),
+            where=text(
+                "status = 'confirmed'"
+            ),
+            using="gist",
+            name=(
+                "exclude_overlapping_"
+                "confirmed_bookings"
+            ),
+        ),
+    )

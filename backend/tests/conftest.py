@@ -16,6 +16,7 @@ from app.dependencies import get_db
 
 from app.main import app
 from app.security.admin_auth import require_admin
+from sqlalchemy import text
 
 test_engine = create_async_engine(
     settings.test_database_url,
@@ -57,12 +58,23 @@ def admin_auth_override():
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database():
     async with test_engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
+        await connection.execute(
+            text(
+                "CREATE EXTENSION "
+                "IF NOT EXISTS btree_gist"
+            )
+        )
+
+        await connection.run_sync(
+            Base.metadata.create_all
+        )
 
     yield
 
     async with test_engine.begin() as connection:
-        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(
+            Base.metadata.drop_all
+        )
 
     await test_engine.dispose()
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.cache import invalidate_availability_cache
 from app.dependencies import SessionDep
@@ -288,7 +289,29 @@ async def update_booking_status(
 
     booking.status = status_in.status.value
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+
+        if (
+                getattr(
+                    exc.orig,
+                    "sqlstate",
+                    None,
+                )
+                == "23P01"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "This time slot "
+                    "is already confirmed"
+                ),
+            ) from exc
+
+        raise
+
     await db.refresh(booking)
 
     await invalidate_availability_cache(

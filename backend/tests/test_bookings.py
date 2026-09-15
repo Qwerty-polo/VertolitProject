@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -571,6 +572,73 @@ async def test_cannot_confirm_overlapping_booking(client):
         confirm_second.json()["detail"]
         == "This time slot is already confirmed"
     )
+
+
+@pytest.mark.asyncio
+async def test_concurrent_confirmation_allows_only_one_booking(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    first_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "starts_at": future_datetime(24),
+            "guests": 4,
+            "duration_hours": 3,
+        },
+    )
+
+    second_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Petro",
+            "customer_phone": "+380992223344",
+            "starts_at": future_datetime(25),
+            "guests": 2,
+            "duration_hours": 3,
+        },
+    )
+
+    first_booking_id = first_response.json()["id"]
+    second_booking_id = second_response.json()["id"]
+
+    first_confirm, second_confirm = await asyncio.gather(
+        client.patch(
+            f"/api/v1/bookings/"
+            f"{first_booking_id}/status",
+            json={"status": "confirmed"},
+        ),
+        client.patch(
+            f"/api/v1/bookings/"
+            f"{second_booking_id}/status",
+            json={"status": "confirmed"},
+        ),
+    )
+
+    status_codes = sorted(
+        [
+            first_confirm.status_code,
+            second_confirm.status_code,
+        ]
+    )
+
+    assert status_codes == [200, 409]
+
 
 @pytest.mark.asyncio
 async def test_create_booking_sends_celery_notification(client):
