@@ -24,3 +24,8 @@ Thumbs.db
 *.log
 logs/
 error.log
+
+.env.docker
+
+
+vertolit-security-review.zip

@@ -1,22 +1,101 @@
-const API_URL = 'http://localhost:8000/api/v1';
+const API_URL = '/api/v1';
 
-const bookingForm = document.getElementById('bookingForm');
-const serviceSelect = document.getElementById('bookingService');
-const dateInput = document.getElementById('bookingDate');
-const timeSelect = document.getElementById('bookingTime');
-const nameInput = document.getElementById('bookingName');
-const phoneInput = document.getElementById('bookingPhone');
-const guestsInput = document.getElementById('bookingGuests');
-const durationInput = document.getElementById('bookingDuration');
-const commentInput = document.getElementById('bookingComment');
-const messageEl = document.getElementById('bookingMessage');
+const bookingForm =
+  document.getElementById('bookingForm');
 
-const submitButton = bookingForm.querySelector(
-  'button[type="submit"]'
-);
+const serviceSelect =
+  document.getElementById('bookingService');
+
+const dateInput =
+  document.getElementById('bookingDate');
+
+const timeSelect =
+  document.getElementById('bookingTime');
+
+const durationInput =
+  document.getElementById('bookingDuration');
+
+const checkInInput =
+  document.getElementById('bookingCheckIn');
+
+const checkOutInput =
+  document.getElementById('bookingCheckOut');
+
+const nameInput =
+  document.getElementById('bookingName');
+
+const phoneInput =
+  document.getElementById('bookingPhone');
+
+const guestsInput =
+  document.getElementById('bookingGuests');
+
+const commentInput =
+  document.getElementById('bookingComment');
+
+const messageEl =
+  document.getElementById('bookingMessage');
+
+const submitButton =
+  bookingForm.querySelector(
+    'button[type="submit"]'
+  );
 
 
-function showMessage(message, isError = false) {
+const hourlyDateGroup =
+  document.getElementById('hourlyDateGroup');
+
+const hourlyTimeGroup =
+  document.getElementById('hourlyTimeGroup');
+
+const hourlyDurationGroup =
+  document.getElementById(
+    'hourlyDurationGroup'
+  );
+
+const dailyCheckInGroup =
+  document.getElementById(
+    'dailyCheckInGroup'
+  );
+
+const dailyCheckOutGroup =
+  document.getElementById(
+    'dailyCheckOutGroup'
+  );
+
+const phoneOnlyNotice =
+  document.getElementById(
+    'phoneOnlyNotice'
+  );
+
+const customerDivider =
+  document.getElementById(
+    'customerDivider'
+  );
+
+const nameGroup =
+  document.getElementById('nameGroup');
+
+const phoneGroup =
+  document.getElementById('phoneGroup');
+
+const guestsGroup =
+  document.getElementById('guestsGroup');
+
+const commentGroup =
+  document.getElementById('commentGroup');
+
+const submitGroup =
+  document.getElementById('submitGroup');
+
+
+let selectedService = null;
+
+
+function showMessage(
+  message,
+  isError = false
+) {
   messageEl.textContent = message;
 
   messageEl.classList.toggle(
@@ -26,20 +105,280 @@ function showMessage(message, isError = false) {
 }
 
 
-function setMinimumBookingDate() {
-  const today = new Date();
-
-  const year = today.getFullYear();
+function formatDateForInput(date) {
+  const year = date.getFullYear();
 
   const month = String(
-    today.getMonth() + 1
+    date.getMonth() + 1
   ).padStart(2, '0');
 
   const day = String(
-    today.getDate()
+    date.getDate()
   ).padStart(2, '0');
 
-  dateInput.min = `${year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
+}
+
+
+function addDays(
+  dateString,
+  days
+) {
+  const [
+    year,
+    month,
+    day
+  ] = dateString
+    .split('-')
+    .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day
+  );
+
+  date.setDate(
+    date.getDate() + days
+  );
+
+  return formatDateForInput(date);
+}
+
+
+function setMinimumBookingDates() {
+  const today =
+    formatDateForInput(
+      new Date()
+    );
+
+  dateInput.min = today;
+
+  checkInInput.min = today;
+}
+
+
+function hideAllConditionalFields() {
+  hourlyDateGroup.hidden = true;
+  hourlyTimeGroup.hidden = true;
+  hourlyDurationGroup.hidden = true;
+
+  dailyCheckInGroup.hidden = true;
+  dailyCheckOutGroup.hidden = true;
+
+  phoneOnlyNotice.hidden = true;
+
+  customerDivider.hidden = true;
+
+  nameGroup.hidden = true;
+  phoneGroup.hidden = true;
+  guestsGroup.hidden = true;
+  commentGroup.hidden = true;
+
+  submitGroup.hidden = true;
+
+
+  dateInput.required = false;
+  timeSelect.required = false;
+  durationInput.required = false;
+
+  checkInInput.required = false;
+  checkOutInput.required = false;
+
+  nameInput.required = false;
+  phoneInput.required = false;
+  guestsInput.required = false;
+}
+
+
+function showCustomerFields() {
+  customerDivider.hidden = false;
+
+  nameGroup.hidden = false;
+  phoneGroup.hidden = false;
+  guestsGroup.hidden = false;
+  commentGroup.hidden = false;
+
+  submitGroup.hidden = false;
+
+  nameInput.required = true;
+  phoneInput.required = true;
+  guestsInput.required = true;
+}
+
+
+function resetAvailability() {
+  timeSelect.disabled = true;
+
+  timeSelect.innerHTML =
+    '<option value="">Спочатку оберіть дату</option>';
+}
+
+
+function configureHourlyService() {
+  hourlyDateGroup.hidden = false;
+  hourlyTimeGroup.hidden = false;
+  hourlyDurationGroup.hidden = false;
+
+  dateInput.required = true;
+  timeSelect.required = true;
+  durationInput.required = true;
+
+  const minimumDuration =
+    selectedService
+      .minimum_duration_hours;
+
+  durationInput.min =
+    minimumDuration || 1;
+
+  durationInput.value =
+    minimumDuration || '';
+
+  showCustomerFields();
+
+  resetAvailability();
+
+  if (dateInput.value) {
+    loadAvailability();
+  }
+}
+
+
+function updateCheckOutMinimum() {
+  if (!selectedService) {
+    return;
+  }
+
+  const minimumDays =
+    selectedService
+      .minimum_duration_days || 1;
+
+  if (!checkInInput.value) {
+    checkOutInput.min =
+      addDays(
+        formatDateForInput(new Date()),
+        minimumDays
+      );
+
+    return;
+  }
+
+  const minimumCheckOut =
+    addDays(
+      checkInInput.value,
+      minimumDays
+    );
+
+  checkOutInput.min =
+    minimumCheckOut;
+
+  if (
+    checkOutInput.value &&
+    checkOutInput.value <
+      minimumCheckOut
+  ) {
+    checkOutInput.value =
+      minimumCheckOut;
+  }
+}
+
+
+function configureDailyService() {
+  dailyCheckInGroup.hidden = false;
+  dailyCheckOutGroup.hidden = false;
+
+  checkInInput.required = true;
+  checkOutInput.required = true;
+
+  updateCheckOutMinimum();
+
+  showCustomerFields();
+}
+
+
+function configurePhoneOnlyService() {
+  phoneOnlyNotice.hidden = false;
+}
+
+
+function configureServiceForm() {
+  hideAllConditionalFields();
+
+  resetAvailability();
+
+  showMessage('');
+
+  const selectedOption =
+    serviceSelect.options[
+      serviceSelect.selectedIndex
+    ];
+
+  if (
+    !selectedOption ||
+    !selectedOption.value
+  ) {
+    selectedService = null;
+    return;
+  }
+
+  selectedService = {
+    id:
+      Number(
+        selectedOption.value
+      ),
+
+    name:
+      selectedOption
+        .dataset.serviceName,
+
+    booking_type:
+      selectedOption
+        .dataset.bookingType,
+
+    minimum_duration_hours:
+      selectedOption
+        .dataset.minimumDurationHours
+        ? Number(
+            selectedOption
+              .dataset.minimumDurationHours
+          )
+        : null,
+
+    minimum_duration_days:
+      selectedOption
+        .dataset.minimumDurationDays
+        ? Number(
+            selectedOption
+              .dataset.minimumDurationDays
+          )
+        : null,
+  };
+
+
+  if (
+    selectedService.booking_type
+    === 'hourly'
+  ) {
+    configureHourlyService();
+    return;
+  }
+
+
+  if (
+    selectedService.booking_type
+    === 'daily'
+  ) {
+    configureDailyService();
+    return;
+  }
+
+
+  if (
+    selectedService.booking_type
+    === 'phone_only'
+  ) {
+    configurePhoneOnlyService();
+  }
 }
 
 
@@ -55,51 +394,72 @@ async function loadServices() {
       );
     }
 
-    const services = await response.json();
+    const services =
+      await response.json();
 
     serviceSelect.innerHTML =
-      '<option value="">Оберіть послугу</option>';
+        '<option value="" disabled selected hidden>Оберіть послугу</option>';
 
-    services.forEach((service) => {
-      const option =
-        document.createElement('option');
+    services.forEach(
+      (service) => {
+        const option =
+          document.createElement(
+            'option'
+          );
 
-      option.value = service.id;
+        option.value =
+          service.id;
 
-      option.textContent =
-        `${service.name} — ${service.price} грн`;
+        option.textContent =
+          service.name;
 
-      option.dataset.minimumDuration =
-        service.minimum_duration_hours;
+        option.dataset.serviceName =
+          service.name;
 
-      option.dataset.serviceName =
-        service.name;
+        option.dataset.bookingType =
+          service.booking_type;
 
-      serviceSelect.appendChild(option);
-    });
+        option.dataset.minimumDurationHours =
+          service.minimum_duration_hours
+          ?? '';
+
+        option.dataset.minimumDurationDays =
+          service.minimum_duration_days
+          ?? '';
+
+        serviceSelect.appendChild(
+          option
+        );
+      }
+    );
+
 
     const params =
-      new URLSearchParams(window.location.search);
+      new URLSearchParams(
+        window.location.search
+      );
 
     const requestedService =
       params.get('service');
 
     if (requestedService) {
       const matchingOption =
-        Array.from(serviceSelect.options)
+        Array
+          .from(
+            serviceSelect.options
+          )
           .find(
             (option) =>
-              option.dataset.serviceName ===
-              requestedService
+              option.dataset
+                .serviceName
+              === requestedService
           );
 
       if (matchingOption) {
         serviceSelect.value =
           matchingOption.value;
 
-        serviceSelect.dispatchEvent(
-          new Event('change')
-        );
+        configureServiceForm();
       }
     }
 
@@ -113,22 +473,32 @@ async function loadServices() {
 
 
 async function loadAvailability() {
-  const serviceId = serviceSelect.value;
-  const date = dateInput.value;
-
-  if (!serviceId || !date) {
-    timeSelect.disabled = true;
-
-    timeSelect.innerHTML =
-      '<option value="">Спочатку оберіть послугу та дату</option>';
-
+  if (
+    !selectedService ||
+    selectedService.booking_type
+      !== 'hourly'
+  ) {
     return;
   }
+
+  const serviceId =
+    selectedService.id;
+
+  const date =
+    dateInput.value;
+
+
+  if (!serviceId || !date) {
+    resetAvailability();
+    return;
+  }
+
 
   timeSelect.disabled = true;
 
   timeSelect.innerHTML =
     '<option value="">Завантаження...</option>';
+
 
   try {
     const response = await fetch(
@@ -141,7 +511,9 @@ async function loadAvailability() {
       );
     }
 
-    const slots = await response.json();
+    const slots =
+      await response.json();
+
 
     if (slots.length === 0) {
       timeSelect.innerHTML =
@@ -150,16 +522,21 @@ async function loadAvailability() {
       return;
     }
 
+
     timeSelect.innerHTML =
       '<option value="">Оберіть час</option>';
 
+
     slots.forEach((slot) => {
       const option =
-        document.createElement('option');
+        document.createElement(
+          'option'
+        );
 
       option.value = slot;
 
-      const slotDate = new Date(slot);
+      const slotDate =
+        new Date(slot);
 
       option.textContent =
         slotDate.toLocaleTimeString(
@@ -167,12 +544,16 @@ async function loadAvailability() {
           {
             hour: '2-digit',
             minute: '2-digit',
-            timeZone: 'Europe/Kyiv',
+            timeZone:
+              'Europe/Kyiv',
           }
         );
 
-      timeSelect.appendChild(option);
+      timeSelect.appendChild(
+        option
+      );
     });
+
 
     timeSelect.disabled = false;
 
@@ -190,28 +571,7 @@ async function loadAvailability() {
 
 serviceSelect.addEventListener(
   'change',
-  () => {
-    const selectedOption =
-      serviceSelect.options[
-        serviceSelect.selectedIndex
-      ];
-
-    const minimumDuration =
-      selectedOption?.dataset.minimumDuration;
-
-    if (minimumDuration) {
-      durationInput.value =
-        minimumDuration;
-
-      durationInput.min =
-        minimumDuration;
-    } else {
-      durationInput.value = '';
-      durationInput.min = '1';
-    }
-
-    loadAvailability();
-  }
+  configureServiceForm
 );
 
 
@@ -221,22 +581,52 @@ dateInput.addEventListener(
 );
 
 
+checkInInput.addEventListener(
+  'change',
+  () => {
+    updateCheckOutMinimum();
+  }
+);
+
+
 bookingForm.addEventListener(
   'submit',
   async (event) => {
     event.preventDefault();
 
+
+    if (!selectedService) {
+      showMessage(
+        'Оберіть послугу.',
+        true
+      );
+
+      return;
+    }
+
+
+    if (
+      selectedService.booking_type
+      === 'phone_only'
+    ) {
+      return;
+    }
+
+
     showMessage(
       'Надсилаємо заявку...'
     );
 
+
     submitButton.disabled = true;
+
     submitButton.textContent =
       'Надсилаємо...';
 
+
     const payload = {
       service_id:
-        Number(serviceSelect.value),
+        selectedService.id,
 
       customer_name:
         nameInput.value.trim(),
@@ -244,20 +634,43 @@ bookingForm.addEventListener(
       customer_phone:
         phoneInput.value.trim(),
 
-      starts_at:
-        timeSelect.value,
-
       guests:
-        Number(guestsInput.value),
+        Number(
+          guestsInput.value
+        ),
 
       comment:
-        commentInput.value.trim() || null,
-
-      duration_hours:
-        durationInput.value
-          ? Number(durationInput.value)
-          : null,
+        commentInput.value
+          .trim()
+        || null,
     };
+
+
+    if (
+      selectedService.booking_type
+      === 'hourly'
+    ) {
+      payload.starts_at =
+        timeSelect.value;
+
+      payload.duration_hours =
+        Number(
+          durationInput.value
+        );
+    }
+
+
+    if (
+      selectedService.booking_type
+      === 'daily'
+    ) {
+      payload.check_in_date =
+        checkInInput.value;
+
+      payload.check_out_date =
+        checkOutInput.value;
+    }
+
 
     try {
       const response = await fetch(
@@ -270,58 +683,84 @@ bookingForm.addEventListener(
               'application/json',
           },
 
-          body: JSON.stringify(payload),
+          body:
+            JSON.stringify(
+              payload
+            ),
         }
       );
+
 
       let data = {};
 
       try {
-        data = await response.json();
+        data =
+          await response.json();
       } catch {
         data = {};
       }
+
 
       if (!response.ok) {
         let message =
           'Не вдалося створити бронювання.';
 
-        if (response.status === 400) {
+
+        if (
+          response.status === 400
+        ) {
           message =
             data.detail ||
             'Некоректні дані бронювання.';
         }
 
-        if (response.status === 409) {
+
+        if (
+          response.status === 409
+        ) {
           message =
-            'Цей час уже зайнятий. Оберіть інший слот.';
+            selectedService
+              .booking_type
+            === 'daily'
+              ? 'Ці дати вже зайняті. Оберіть інші.'
+              : 'Цей час уже зайнятий. Оберіть інший.';
         }
 
-        if (response.status === 422) {
+
+        if (
+          response.status === 422
+        ) {
           message =
             'Перевірте правильність заповнення форми.';
         }
 
-        if (response.status === 429) {
+
+        if (
+          response.status === 429
+        ) {
           message =
             'Забагато спроб. Спробуйте трохи пізніше.';
         }
 
+
         throw new Error(message);
       }
+
+
+      bookingForm.reset();
+
+      selectedService = null;
+
+      hideAllConditionalFields();
+
+      resetAvailability();
+
+      setMinimumBookingDates();
+
 
       showMessage(
         'Заявку на бронювання створено. Очікуйте підтвердження.'
       );
-
-      bookingForm.reset();
-
-      durationInput.min = '1';
-
-      timeSelect.disabled = true;
-
-      timeSelect.innerHTML =
-        '<option value="">Спочатку оберіть послугу та дату</option>';
 
     } catch (error) {
       showMessage(
@@ -340,5 +779,8 @@ bookingForm.addEventListener(
 );
 
 
-setMinimumBookingDate();
+setMinimumBookingDates();
+
+hideAllConditionalFields();
+
 loadServices();

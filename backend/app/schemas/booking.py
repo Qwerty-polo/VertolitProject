@@ -1,8 +1,12 @@
-from datetime import datetime, timezone
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from datetime import date, datetime, timezone
 from enum import Enum
 
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 
 
 class BookingCreate(BaseModel):
@@ -25,9 +29,21 @@ class BookingCreate(BaseModel):
         examples=["+380991112233"],
     )
 
-    starts_at: datetime = Field(
-        description="Дата і час початку бронювання з timezone",
-        examples=["2026-09-20T13:00:00+03:00"],
+    starts_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Дата і час початку для погодинного бронювання"
+        ),
+    )
+
+    check_in_date: date | None = Field(
+        default=None,
+        description="Дата заїзду для подобового бронювання",
+    )
+
+    check_out_date: date | None = Field(
+        default=None,
+        description="Дата виїзду для подобового бронювання",
     )
 
     guests: int = Field(
@@ -40,27 +56,28 @@ class BookingCreate(BaseModel):
         default=None,
         max_length=500,
         description="Коментар до бронювання",
-        examples=["Birthday"],
     )
 
     duration_hours: int | None = Field(
         default=None,
         ge=1,
         description=(
-            "Тривалість бронювання у годинах. "
-            "Якщо не передано — використовується мінімальна "
-            "тривалість послуги."
+            "Тривалість погодинного бронювання"
         ),
-        examples=[3],
     )
 
     @field_validator("starts_at")
     @classmethod
-    def validate_starts_at(cls, value: datetime) -> datetime:
+    def validate_starts_at(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is None:
+            return value
+
         if value.tzinfo is None:
             raise ValueError(
-                "Timezone is required. "
-                "Example: 2026-09-20T13:00:00+03:00"
+                "Timezone is required"
             )
 
         if value <= datetime.now(timezone.utc):
@@ -69,7 +86,6 @@ class BookingCreate(BaseModel):
             )
 
         return value
-
 
 
 class BookingStatus(str, Enum):
@@ -90,7 +106,9 @@ class BookingResponse(BaseModel):
     status: BookingStatus
     comment: str | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 class BookingStatusUpdate(BaseModel):

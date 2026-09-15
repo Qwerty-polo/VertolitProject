@@ -25,6 +25,8 @@ from zoneinfo import ZoneInfo
 from app.config import settings
 
 from app.security.admin_auth import require_admin
+
+from app.enums import ServiceBookingType
 # Створюємо роутер
 router = APIRouter(prefix="/services", tags=["Services"])
 
@@ -71,6 +73,17 @@ async def get_service_availability(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Service not found",
+        )
+    if (
+            service.booking_type
+            != ServiceBookingType.hourly.value
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Hourly availability is only "
+                "available for hourly services"
+            ),
         )
 
     cache_key = f"availability:{service_id}:{date_value.isoformat()}"

@@ -348,4 +348,21 @@
   .booking-form__message {
     grid-column: auto;
   }
+
+  .booking-form [hidden] {
+    display: none !important;
+  }
+
+  .booking-phone-note {
+    line-height: 1.6;
+  }
+
+  .booking-phone-note strong {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .booking-phone-note p {
+    margin: 0;
+  }
 }

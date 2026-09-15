@@ -12,7 +12,6 @@ async def test_root(client):
     assert response.json()["status"] == "ok"
 
 
-
 @pytest.mark.asyncio
 async def test_create_service(client):
     payload = {
@@ -66,3 +65,76 @@ async def test_get_all_services(client):
         and service["minimum_duration_hours"] == 3
         for service in data
     )
+
+
+@pytest.mark.asyncio
+async def test_create_hourly_service_without_price(client):
+    response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Лазня / Баня",
+            "booking_type": "hourly",
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["price"] is None
+    assert data["booking_type"] == "hourly"
+    assert data["minimum_duration_hours"] == 3
+    assert data["minimum_duration_days"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_daily_service(client):
+    response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Оренда кімнат",
+            "booking_type": "daily",
+            "minimum_duration_days": 1,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["booking_type"] == "daily"
+    assert data["minimum_duration_days"] == 1
+    assert data["minimum_duration_hours"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_phone_only_service(client):
+    response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Оренда приміщення + кухня",
+            "booking_type": "phone_only",
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["booking_type"] == "phone_only"
+    assert data["minimum_duration_hours"] is None
+    assert data["minimum_duration_days"] is None
+
+
+@pytest.mark.asyncio
+async def test_daily_service_requires_minimum_days(client):
+    response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Оренда кімнат",
+            "booking_type": "daily",
+        },
+    )
+
+    assert response.status_code == 422

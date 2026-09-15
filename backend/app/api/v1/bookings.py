@@ -15,6 +15,7 @@ from app.schemas.booking import (
 from app.security.booking_rate_limit import booking_rate_limit
 from app.services.booking_service import (
     calculate_booking_end,
+    calculate_daily_booking_interval,
     has_confirmed_conflict,
     has_other_confirmed_conflict,
     validate_booking_within_business_hours,
@@ -22,7 +23,7 @@ from app.services.booking_service import (
 )
 from app.tasks import send_booking_notification
 from app.security.admin_auth import require_admin
-
+from app.enums import ServiceBookingType
 router = APIRouter(
     prefix="/bookings",
     tags=["Bookings"],
@@ -171,21 +172,72 @@ async def create_booking(
             detail="Service not found",
         )
 
+    if (
+            service.booking_type
+            == ServiceBookingType.phone_only.value
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This service is booked by phone",
+        )
+
     try:
-        ends_at = calculate_booking_end(
-            service=service,
-            starts_at=booking_in.starts_at,
-            requested_duration_hours=booking_in.duration_hours,
-        )
+        if (
+                service.booking_type
+                == ServiceBookingType.hourly.value
+        ):
+            if booking_in.starts_at is None:
+                raise ValueError(
+                    "Для цієї послуги потрібно обрати час"
+                )
 
-        validate_minimum_advance_booking(
-            starts_at=booking_in.starts_at,
-        )
+            starts_at = booking_in.starts_at
 
-        validate_booking_within_business_hours(
-            starts_at=booking_in.starts_at,
-            ends_at=ends_at,
-        )
+            ends_at = calculate_booking_end(
+                service=service,
+                starts_at=starts_at,
+                requested_duration_hours=(
+                    booking_in.duration_hours
+                ),
+            )
+
+            validate_minimum_advance_booking(
+                starts_at=starts_at,
+            )
+
+            validate_booking_within_business_hours(
+                starts_at=starts_at,
+                ends_at=ends_at,
+            )
+
+        elif (
+                service.booking_type
+                == ServiceBookingType.daily.value
+        ):
+            if (
+                    booking_in.check_in_date is None
+                    or booking_in.check_out_date is None
+            ):
+                raise ValueError(
+                    "Оберіть дату заїзду та дату виїзду"
+                )
+
+            starts_at, ends_at = (
+                calculate_daily_booking_interval(
+                    service=service,
+                    check_in_date=(
+                        booking_in.check_in_date
+                    ),
+                    check_out_date=(
+                        booking_in.check_out_date
+                    ),
+                )
+            )
+
+        else:
+            raise ValueError(
+                "Unsupported booking type"
+            )
 
     except ValueError as exc:
         raise HTTPException(
@@ -196,7 +248,7 @@ async def create_booking(
     conflict = await has_confirmed_conflict(
         db=db,
         service_id=service.id,
-        starts_at=booking_in.starts_at,
+        starts_at=starts_at,
         ends_at=ends_at,
     )
 
@@ -206,13 +258,14 @@ async def create_booking(
             detail="This time slot is already booked",
         )
 
-    booking_data = booking_in.model_dump(
-        exclude={"duration_hours"}
-    )
-
     booking = Booking(
-        **booking_data,
+        service_id=booking_in.service_id,
+        customer_name=booking_in.customer_name,
+        customer_phone=booking_in.customer_phone,
+        starts_at=starts_at,
         ends_at=ends_at,
+        guests=booking_in.guests,
+        comment=booking_in.comment,
     )
 
     db.add(booking)

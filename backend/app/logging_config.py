@@ -7,8 +7,9 @@ LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
 
 
-def setup_logging():
+def setup_logging() -> None:
     logger = logging.getLogger("vertolit")
+
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
@@ -16,7 +17,10 @@ def setup_logging():
         return
 
     formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s %(name)s %(message)s"
+        "%(asctime)s "
+        "%(levelname)s "
+        "%(name)s "
+        "%(message)s"
     )
 
     console_handler = logging.StreamHandler()

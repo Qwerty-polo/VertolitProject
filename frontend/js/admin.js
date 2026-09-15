@@ -1,5 +1,4 @@
-const API_URL =
-  'http://localhost:8000/api/v1';
+const API_URL = '/api/v1';
 
 
 const loginSection =
@@ -368,13 +367,121 @@ function getDurationHours(
 }
 
 
-function getServiceName(
+function getDurationDays(
+  booking
+) {
+  const start =
+    new Date(booking.starts_at);
+
+  const end =
+    new Date(booking.ends_at);
+
+  const milliseconds =
+    end.getTime() -
+    start.getTime();
+
+  return Math.round(
+    milliseconds /
+    1000 /
+    60 /
+    60 /
+    24
+  );
+}
+
+
+function formatBookingDateOnly(
+  value
+) {
+  return new Intl.DateTimeFormat(
+    'uk-UA',
+    {
+      timeZone: 'Europe/Kyiv',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }
+  ).format(
+    new Date(value)
+  );
+}
+
+
+function formatBookingPeriod(
+  booking
+) {
+  const service =
+    getService(
+      booking.service_id
+    );
+
+  if (
+    service?.booking_type
+    === 'daily'
+  ) {
+    return (
+      `${formatBookingDateOnly(
+        booking.starts_at
+      )} → ` +
+      `${formatBookingDateOnly(
+        booking.ends_at
+      )}`
+    );
+  }
+
+  return formatBookingDate(
+    booking.starts_at
+  );
+}
+
+
+function formatBookingDuration(
+  booking
+) {
+  const service =
+    getService(
+      booking.service_id
+    );
+
+  if (
+    service?.booking_type
+    === 'daily'
+  ) {
+    const days =
+      getDurationDays(booking);
+
+    if (days === 1) {
+      return '1 ніч';
+    }
+
+    return `${days} ночі`;
+  }
+
+  return `${getDurationHours(
+    booking
+  )} год.`;
+}
+
+
+function getService(
   serviceId
 ) {
   return (
     services.get(
       Number(serviceId)
-    ) ||
+    ) || null
+  );
+}
+
+
+function getServiceName(
+  serviceId
+) {
+  const service =
+    getService(serviceId);
+
+  return (
+    service?.name ||
     `Послуга #${serviceId}`
   );
 }
@@ -690,10 +797,10 @@ function renderBookings() {
           'td'
         );
 
-      dateCell.textContent =
-        formatBookingDate(
-          booking.starts_at
-        );
+        dateCell.textContent =
+            formatBookingPeriod(
+                booking
+            );
 
 
       const guestsCell =
@@ -710,10 +817,10 @@ function renderBookings() {
           'td'
         );
 
-      durationCell.textContent =
-        `${getDurationHours(
-          booking
-        )} год.`;
+        durationCell.textContent =
+            formatBookingDuration(
+                booking
+            );
 
 
       const statusCell =
@@ -789,14 +896,14 @@ async function loadServices() {
   const data =
     await response.json();
 
-  services = new Map(
-    data.map(
-      (service) => [
-        Number(service.id),
-        service.name,
-      ]
-    )
-  );
+    services = new Map(
+        data.map(
+            (service) => [
+                Number(service.id),
+                service,
+            ]
+        )
+    );
 }
 
 

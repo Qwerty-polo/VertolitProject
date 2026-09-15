@@ -272,3 +272,24 @@ async def test_availability_is_saved_to_cache(client):
 
     assert response.status_code == 200
     set_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_daily_service_has_no_hourly_availability(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Оренда кімнат",
+            "booking_type": "daily",
+            "minimum_duration_days": 1,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    response = await client.get(
+        f"/api/v1/services/{service_id}/availability",
+        params={"date": "2026-09-20"},
+    )
+
+    assert response.status_code == 400

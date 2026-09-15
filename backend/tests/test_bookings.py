@@ -729,3 +729,210 @@ async def test_create_booking_duration_too_long(client):
         response.json()["detail"]
         == "Максимальне бронювання: 12 годин"
     )
+
+
+@pytest.mark.asyncio
+async def test_create_daily_booking(client):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Test rooms",
+            "booking_type": "daily",
+            "minimum_duration_days": 1,
+        },
+    )
+
+    assert service_response.status_code == 201
+
+    service_id = service_response.json()["id"]
+
+    check_in = (
+        datetime.now(KYIV_TZ).date()
+        + timedelta(days=3)
+    )
+
+    check_out = check_in + timedelta(days=1)
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "check_in_date": check_in.isoformat(),
+            "check_out_date": check_out.isoformat(),
+            "guests": 2,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["service_id"] == service_id
+    assert data["customer_name"] == "Ivan"
+    assert data["status"] == "pending"
+
+    assert (
+            datetime.fromisoformat(
+                data["starts_at"]
+            )
+            .astimezone(KYIV_TZ)
+            .date()
+            == check_in
+    )
+
+    assert (
+            datetime.fromisoformat(
+                data["ends_at"]
+            )
+            .astimezone(KYIV_TZ)
+            .date()
+            == check_out
+    )
+
+
+@pytest.mark.asyncio
+async def test_daily_booking_rejects_invalid_dates(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Test rooms invalid dates",
+            "booking_type": "daily",
+            "minimum_duration_days": 1,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    check_in = (
+        datetime.now(KYIV_TZ).date()
+        + timedelta(days=3)
+    )
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "check_in_date": check_in.isoformat(),
+            "check_out_date": check_in.isoformat(),
+            "guests": 2,
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert (
+        response.json()["detail"]
+        == (
+            "Дата виїзду повинна бути "
+            "пізніше дати заїзду"
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_phone_only_service_cannot_be_booked_online(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Test hall and kitchen",
+            "booking_type": "phone_only",
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "guests": 10,
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert (
+        response.json()["detail"]
+        == "This service is booked by phone"
+    )
+
+
+@pytest.mark.asyncio
+async def test_daily_booking_conflicts_with_confirmed_booking(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Test conflict rooms",
+            "booking_type": "daily",
+            "minimum_duration_days": 1,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    check_in = (
+        datetime.now(KYIV_TZ).date()
+        + timedelta(days=5)
+    )
+
+    check_out = check_in + timedelta(days=2)
+
+    first_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Ivan",
+            "customer_phone": "+380991112233",
+            "check_in_date": check_in.isoformat(),
+            "check_out_date": check_out.isoformat(),
+            "guests": 2,
+        },
+    )
+
+    assert first_response.status_code == 201
+
+    first_booking_id = first_response.json()["id"]
+
+    confirm_response = await client.patch(
+        (
+            f"/api/v1/bookings/"
+            f"{first_booking_id}/status"
+        ),
+        json={
+            "status": "confirmed",
+        },
+    )
+
+    assert confirm_response.status_code == 200
+
+    second_response = await client.post(
+        "/api/v1/bookings/",
+        json={
+            "service_id": service_id,
+            "customer_name": "Petro",
+            "customer_phone": "+380992223344",
+            "check_in_date": (
+                check_in
+                + timedelta(days=1)
+            ).isoformat(),
+            "check_out_date": (
+                check_out
+                + timedelta(days=1)
+            ).isoformat(),
+            "guests": 2,
+        },
+    )
+
+    assert second_response.status_code == 409
