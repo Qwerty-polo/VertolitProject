@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 
@@ -22,10 +23,13 @@ def setup_logging():
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
 
-    error_file_handler = logging.FileHandler(
+    error_file_handler = RotatingFileHandler(
         LOG_DIR / "error.log",
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
         encoding="utf-8",
     )
+
     error_file_handler.setLevel(logging.ERROR)
     error_file_handler.setFormatter(formatter)
 
