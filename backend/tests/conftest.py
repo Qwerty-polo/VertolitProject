@@ -13,8 +13,9 @@ from unittest.mock import AsyncMock, patch
 from app.config import settings
 from app.database import Base
 from app.dependencies import get_db
-from app.main import app
 
+from app.main import app
+from app.security.admin_auth import require_admin
 
 test_engine = create_async_engine(
     settings.test_database_url,
@@ -34,6 +35,23 @@ async def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+
+
+@pytest.fixture
+def admin_auth_override():
+    async def fake_require_admin():
+        return "test-admin-token"
+
+    app.dependency_overrides[
+        require_admin
+    ] = fake_require_admin
+
+    yield
+
+    app.dependency_overrides.pop(
+        require_admin,
+        None,
+    )
 
 
 @pytest_asyncio.fixture(autouse=True)

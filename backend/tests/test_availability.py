@@ -3,6 +3,10 @@ import pytest
 import pytest
 from unittest.mock import AsyncMock, patch
 
+pytestmark = pytest.mark.usefixtures(
+    "admin_auth_override"
+)
+
 @pytest.mark.asyncio
 async def test_create_availability_block(client):
     service_response = await client.post(

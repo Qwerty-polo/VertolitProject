@@ -52,16 +52,33 @@ async def get_all_bookings(
     responses={
         404: {
             "description": "Booking not found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Booking not found"
-                    }
-                }
-            },
-        }
+        },
+        401: {
+            "description": "Admin authentication required",
+        },
     },
 )
+
+
+async def get_booking_by_id(
+    booking_id: int,
+    db: SessionDep,
+):
+    result = await db.execute(
+        select(Booking).where(
+            Booking.id == booking_id
+        )
+    )
+
+    booking = result.scalar_one_or_none()
+
+    if booking is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found",
+        )
+
+    return booking
 
 
 @router.post(

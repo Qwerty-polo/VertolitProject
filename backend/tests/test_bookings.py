@@ -27,6 +27,10 @@ def future_datetime(
 
     return value.isoformat()
 
+pytestmark = pytest.mark.usefixtures(
+    "admin_auth_override"
+)
+
 
 @pytest.mark.asyncio
 async def test_create_booking(client):
@@ -340,7 +344,10 @@ async def test_get_booking_by_id(client):
     assert response.status_code == 200
 
     data = response.json()
-
+    response = await client.get(
+        f"/api/v1/bookings/{booking_id}"
+    )
+    assert response.status_code == 200
     assert data["id"] == booking_id
     assert data["customer_name"] == "Ivan"
     assert data["service_id"] == service_id
