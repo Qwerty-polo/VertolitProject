@@ -110,6 +110,15 @@ def mock_redis():
             "app.security.booking_rate_limit.redis_client.expire",
             new_callable=AsyncMock,
         ),
+        patch(
+            "app.security.admin_login_rate_limit.redis_client.incr",
+            new_callable=AsyncMock,
+            return_value=1,
+        ),
+        patch(
+            "app.security.admin_login_rate_limit.redis_client.expire",
+            new_callable=AsyncMock,
+        ),
     ):
         yield
 

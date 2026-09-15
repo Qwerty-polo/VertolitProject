@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     admin_session_ttl_seconds: int = 43200
     admin_cookie_secure: bool = False
 
+    admin_login_rate_limit: int = 5
+    admin_login_rate_limit_window_seconds: int = 600
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

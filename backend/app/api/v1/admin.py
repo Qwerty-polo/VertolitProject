@@ -19,7 +19,9 @@ from app.security.admin_auth import (
     delete_admin_session,
     require_admin,
 )
-
+from app.security.admin_login_rate_limit import (
+    admin_login_rate_limit,
+)
 
 router = APIRouter(
     prefix="/admin",
@@ -30,6 +32,9 @@ router = APIRouter(
 @router.post(
     "/login",
     response_model=AdminLoginResponse,
+    dependencies=[
+        Depends(admin_login_rate_limit)
+    ],
 )
 async def admin_login(
     login_data: AdminLoginRequest,
