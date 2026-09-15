@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-
+import logging
 from app.cache import invalidate_availability_cache
 from app.dependencies import SessionDep
 from app.models.booking import Booking
@@ -24,6 +24,8 @@ from app.services.booking_service import (
 from app.tasks import send_booking_notification
 from app.security.admin_auth import require_admin
 from app.enums import ServiceBookingType
+
+logger = logging.getLogger("vertolit")
 router = APIRouter(
     prefix="/bookings",
     tags=["Bookings"],
@@ -273,11 +275,19 @@ async def create_booking(
     await db.commit()
     await db.refresh(booking)
 
-    send_booking_notification.delay(
-        booking.id,
-        booking.service_id,
-        booking.starts_at.isoformat(),
-    )
+    try:
+        send_booking_notification.delay(
+            booking.id,
+            booking.service_id,
+            booking.starts_at.isoformat(),
+        )
+    except Exception:
+        logger.exception(
+            "Failed to enqueue booking notification "
+            "booking_id=%s service_id=%s",
+            booking.id,
+            booking.service_id,
+        )
 
     return booking
 

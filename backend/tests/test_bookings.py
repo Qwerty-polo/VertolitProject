@@ -694,6 +694,59 @@ async def test_create_booking_sends_celery_notification(client):
 
 
 @pytest.mark.asyncio
+async def test_create_booking_survives_celery_enqueue_failure(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna Celery Failure",
+            "description": "Test sauna",
+            "price": 1500,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    assert service_response.status_code == 201
+
+    service_id = service_response.json()["id"]
+
+    with patch(
+        "app.api.v1.bookings."
+        "send_booking_notification.delay",
+        side_effect=RuntimeError(
+            "Celery broker unavailable"
+        ),
+    ):
+        response = await client.post(
+            "/api/v1/bookings/",
+            json={
+                "service_id": service_id,
+                "customer_name": "Ivan",
+                "customer_phone": "+380991112233",
+                "starts_at": future_datetime(),
+                "guests": 4,
+                "duration_hours": 3,
+                "comment": "Celery failure test",
+            },
+        )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["status"] == "pending"
+    assert data["service_id"] == service_id
+
+    booking_response = await client.get(
+        f"/api/v1/bookings/{data['id']}"
+    )
+
+    assert booking_response.status_code == 200
+    assert booking_response.json()["id"] == data["id"]
+
+
+@pytest.mark.asyncio
 async def test_create_booking_duration_too_long(client):
     service_payload = {
         "name": "Sauna",
@@ -936,3 +989,5 @@ async def test_daily_booking_conflicts_with_confirmed_booking(
     )
 
     assert second_response.status_code == 409
+
+

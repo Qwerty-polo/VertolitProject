@@ -4,8 +4,11 @@ from app.config import settings
 
 # Створюємо асинхронний рушій (engine)
 # echo=True дозволить бачити SQL-запити в консолі (дуже корисно при розробці)
-engine = create_async_engine(settings.database_url, echo=True)
-
+engine = create_async_engine(
+    settings.database_url,
+    echo=settings.sqlalchemy_echo,
+    pool_pre_ping=True,
+)
 # Фабрика для створення сесій бази даних
 async_session_maker = async_sessionmaker(
     engine,

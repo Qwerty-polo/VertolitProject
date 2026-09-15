@@ -1,4 +1,10 @@
+from unittest.mock import (
+    AsyncMock,
+    patch,
+)
+
 import pytest
+from redis.exceptions import RedisError
 
 from app.api.v1.admin import settings
 from app.security import admin_auth
@@ -55,6 +61,12 @@ def fake_admin_redis(monkeypatch):
         settings,
         "admin_cookie_secure",
         False,
+    )
+
+    monkeypatch.setattr(
+        settings,
+        "cors_origins",
+        "http://localhost:3000",
     )
 
     return fake_redis
@@ -260,7 +272,11 @@ async def test_admin_logout_invalidates_session(
     )
 
     logout_response = await client.post(
-        "/api/v1/admin/logout"
+        "/api/v1/admin/logout",
+        headers={
+            "Origin":
+                "http://localhost:3000",
+        },
     )
 
     assert logout_response.status_code == 204
@@ -275,3 +291,149 @@ async def test_admin_logout_invalidates_session(
     )
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_cookie_admin_mutation_rejects_foreign_origin(
+    client,
+    fake_admin_redis,
+):
+    login_response = await client.post(
+        "/api/v1/admin/login",
+        json={
+            "password": TEST_ADMIN_PASSWORD,
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    response = await client.post(
+        "/api/v1/admin/logout",
+        headers={
+            "Origin":
+                "https://evil.example",
+        },
+    )
+
+    assert response.status_code == 403
+
+    assert response.json() == {
+        "detail": "Invalid request origin"
+    }
+
+
+@pytest.mark.asyncio
+async def test_cookie_admin_mutation_accepts_trusted_origin(
+    client,
+    fake_admin_redis,
+):
+    login_response = await client.post(
+        "/api/v1/admin/login",
+        json={
+            "password": TEST_ADMIN_PASSWORD,
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    response = await client.post(
+        "/api/v1/admin/logout",
+        headers={
+            "Origin":
+                "http://localhost:3000",
+        },
+    )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_bearer_admin_mutation_does_not_require_origin(
+    client,
+    fake_admin_redis,
+):
+    login_response = await client.post(
+        "/api/v1/admin/login",
+        json={
+            "password": TEST_ADMIN_PASSWORD,
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    token = login_response.json()[
+        "access_token"
+    ]
+
+    client.cookies.clear()
+
+    response = await client.post(
+        "/api/v1/admin/logout",
+        headers={
+            "Authorization":
+                f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_admin_auth_fails_closed_when_redis_is_down(
+    client,
+):
+    with patch(
+        "app.security.admin_auth."
+        "redis_client.exists",
+        new_callable=AsyncMock,
+        side_effect=RedisError(
+            "Redis unavailable"
+        ),
+    ):
+        response = await client.get(
+            "/api/v1/admin/session",
+            headers={
+                "Authorization":
+                    "Bearer test-token",
+            },
+        )
+
+    assert response.status_code == 503
+
+    assert response.json() == {
+        "detail": (
+            "Admin authentication "
+            "service unavailable"
+        )
+    }
+
+
+@pytest.mark.asyncio
+async def test_admin_login_fails_closed_when_rate_limiter_redis_is_down(
+    client,
+):
+    with patch(
+        "app.security."
+        "admin_login_rate_limit."
+        "redis_client.incr",
+        new_callable=AsyncMock,
+        side_effect=RedisError(
+            "Redis unavailable"
+        ),
+    ):
+        response = await client.post(
+            "/api/v1/admin/login",
+            json={
+                "password":
+                    TEST_ADMIN_PASSWORD,
+            },
+        )
+
+    assert response.status_code == 503
+
+    assert response.json() == {
+        "detail": (
+            "Admin authentication "
+            "service unavailable"
+        )
+    }

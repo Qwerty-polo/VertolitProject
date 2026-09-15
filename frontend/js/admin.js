@@ -239,6 +239,12 @@ loginForm.addEventListener(
             'Забагато спроб. Спробуйте пізніше.'
           );
         }
+          if (response.status === 503) {
+              throw new Error(
+                  'Сервіс входу тимчасово ' +
+                  'недоступний. Спробуйте пізніше.'
+              );
+          }
 
         throw new Error(
           data.detail ||

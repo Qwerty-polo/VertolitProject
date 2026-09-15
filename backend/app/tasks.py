@@ -56,36 +56,55 @@ def send_booking_reminder(
 
 async def _check_upcoming_bookings():
     now = datetime.now(timezone.utc)
-    reminder_until = now + timedelta(hours=24)
+    reminder_until = now + timedelta(
+        hours=24
+    )
 
     async with async_session_maker() as db:
         result = await db.execute(
             select(Booking).where(
-                Booking.status == BookingStatus.confirmed.value,
+                Booking.status
+                == BookingStatus.confirmed.value,
                 Booking.starts_at > now,
-                Booking.starts_at <= reminder_until,
-                Booking.reminder_sent.is_(False),
+                Booking.starts_at
+                <= reminder_until,
+                Booking.reminder_sent.is_(
+                    False
+                ),
             )
         )
 
         bookings = result.scalars().all()
 
+        reminders_enqueued = 0
+
         for booking in bookings:
-            send_booking_reminder.delay(
-                booking.id,
-                booking.starts_at.isoformat(),
-            )
+            try:
+                send_booking_reminder.delay(
+                    booking.id,
+                    booking.starts_at.isoformat(),
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to enqueue booking "
+                    "reminder booking_id=%s",
+                    booking.id,
+                )
+                continue
 
             booking.reminder_sent = True
+            reminders_enqueued += 1
 
         await db.commit()
 
         logger.info(
-            "Found %s upcoming bookings",
+            "Enqueued %s booking reminders "
+            "out of %s upcoming bookings",
+            reminders_enqueued,
             len(bookings),
         )
 
-        return len(bookings)
+        return reminders_enqueued
 
 
 @celery_app.task(
