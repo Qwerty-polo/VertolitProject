@@ -1,0 +1,92 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Ruff + Pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_DB: vertolit_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vertolit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+
+        ports:
+          - 6379:6379
+
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: "test"
+
+      DATABASE_URL: >-
+        postgresql+asyncpg://postgres:postgres@localhost:5432/vertolit_test
+
+      TEST_DATABASE_URL: >-
+        postgresql+asyncpg://postgres:postgres@localhost:5432/vertolit_test
+
+      REDIS_URL: "redis://localhost:6379/0"
+
+      ADMIN_PASSWORD: "ci-test-admin-password"
+      ADMIN_COOKIE_SECURE: "false"
+
+      CORS_ORIGINS: "http://localhost:3000"
+      DOCS_ENABLED: "true"
+      SQLALCHEMY_ECHO: "false"
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.1.0
+
+      - name: Install dependencies
+        run: uv pip install --system -r requirements.txt
+
+      - name: Run Ruff
+        run: uvx ruff check .
+
+      - name: Run tests
+        run: pytest -v
