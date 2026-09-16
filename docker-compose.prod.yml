@@ -4,21 +4,35 @@ x-backend-image: &backend-image
   pull_policy: always
 
 services:
+  postgres:
+    env_file: !override
+      - .env.production
+
   migrate:
     <<: *backend-image
+    env_file: !override
+      - .env.production
 
   seed:
     <<: *backend-image
+    env_file: !override
+      - .env.production
 
   backend:
     <<: *backend-image
+    env_file: !override
+      - .env.production
     ports: !reset []
 
   celery-worker:
     <<: *backend-image
+    env_file: !override
+      - .env.production
 
   celery-beat:
     <<: *backend-image
+    env_file: !override
+      - .env.production
 
   frontend:
     ports: !override
