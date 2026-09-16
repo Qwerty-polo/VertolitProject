@@ -1,7 +1,25 @@
+x-backend-image: &backend-image
+  image: ghcr.io/qwerty-polo/vertolitproject-backend:latest
+  build: !reset null
+  pull_policy: always
+
 services:
+  migrate:
+    <<: *backend-image
+
+  seed:
+    <<: *backend-image
+
   backend:
+    <<: *backend-image
     ports: !reset []
 
+  celery-worker:
+    <<: *backend-image
+
+  celery-beat:
+    <<: *backend-image
+
   frontend:
-    ports:
+    ports: !override
       - "80:80"
