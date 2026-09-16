@@ -31,11 +31,7 @@ router = APIRouter(
         404: {
             "description": "Service not found",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Service not found"
-                    }
-                }
+                "application/json": {"example": {"detail": "Service not found"}}
             },
         }
     },
@@ -45,9 +41,7 @@ async def create_availability_block(
     db: SessionDep,
 ):
     result = await db.execute(
-        select(Service).where(
-            Service.id == availability_block.service_id
-        )
+        select(Service).where(Service.id == availability_block.service_id)
     )
 
     service = result.scalar_one_or_none()
@@ -58,9 +52,7 @@ async def create_availability_block(
             detail="Service not found",
         )
 
-    block = AvailabilityBlock(
-        **availability_block.model_dump()
-    )
+    block = AvailabilityBlock(**availability_block.model_dump())
 
     db.add(block)
 
@@ -84,8 +76,6 @@ async def create_availability_block(
 async def get_availability_blocks(
     db: SessionDep,
 ):
-    result = await db.execute(
-        select(AvailabilityBlock)
-    )
+    result = await db.execute(select(AvailabilityBlock))
 
     return result.scalars().all()

@@ -1,11 +1,10 @@
-import pytest
-
-import pytest
 from unittest.mock import AsyncMock, patch
 
-pytestmark = pytest.mark.usefixtures(
-    "admin_auth_override"
-)
+import pytest
+from redis.exceptions import RedisError
+
+pytestmark = pytest.mark.usefixtures("admin_auth_override")
+
 
 @pytest.mark.asyncio
 async def test_create_availability_block(client):
@@ -87,9 +86,7 @@ async def test_get_availability_blocks(client):
         },
     )
 
-    response = await client.get(
-        "/api/v1/availability-blocks/"
-    )
+    response = await client.get("/api/v1/availability-blocks/")
 
     assert response.status_code == 200
 
@@ -293,3 +290,78 @@ async def test_daily_service_has_no_hourly_availability(client):
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_availability_survives_redis_read_failure(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna Redis Read Failure",
+            "description": "Test",
+            "price": 1000,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    with patch(
+        "app.api.v1.services.redis_client.get",
+        new_callable=AsyncMock,
+        side_effect=RedisError("Redis unavailable"),
+    ):
+        response = await client.get(
+            (f"/api/v1/services/{service_id}/availability"),
+            params={"date": "2026-09-20"},
+        )
+
+    assert response.status_code == 200
+
+    slots = response.json()
+
+    assert len(slots) > 0
+
+    assert slots[0] == "2026-09-20T10:00:00+03:00"
+
+
+@pytest.mark.asyncio
+async def test_availability_survives_redis_write_failure(
+    client,
+):
+    service_response = await client.post(
+        "/api/v1/services/",
+        json={
+            "name": "Sauna Redis Write Failure",
+            "description": "Test",
+            "price": 1000,
+            "minimum_duration_hours": 3,
+        },
+    )
+
+    service_id = service_response.json()["id"]
+
+    with (
+        patch(
+            "app.api.v1.services.redis_client.get",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "app.api.v1.services.redis_client.set",
+            new_callable=AsyncMock,
+            side_effect=RedisError("Redis unavailable"),
+        ),
+    ):
+        response = await client.get(
+            (f"/api/v1/services/{service_id}/availability"),
+            params={"date": "2026-09-20"},
+        )
+
+    assert response.status_code == 200
+
+    slots = response.json()
+
+    assert len(slots) > 0

@@ -41,19 +41,12 @@ def make_request(
 
 @pytest.mark.asyncio
 async def test_health_bypasses_global_rate_limit():
-    request = make_request(
-        "/api/v1/health/"
-    )
+    request = make_request("/api/v1/health/")
 
-    call_next = AsyncMock(
-        return_value=Response(
-            status_code=200
-        )
-    )
+    call_next = AsyncMock(return_value=Response(status_code=200))
 
     with patch(
-        "app.middleware.rate_limit."
-        "redis_client.incr",
+        "app.middleware.rate_limit.redis_client.incr",
         new_callable=AsyncMock,
     ) as incr_mock:
         response = await rate_limit_middleware(
@@ -71,19 +64,12 @@ async def test_health_bypasses_global_rate_limit():
 async def test_global_rate_limit_fails_open_when_redis_is_down():
     request = make_request()
 
-    call_next = AsyncMock(
-        return_value=Response(
-            status_code=200
-        )
-    )
+    call_next = AsyncMock(return_value=Response(status_code=200))
 
     with patch(
-        "app.middleware.rate_limit."
-        "redis_client.incr",
+        "app.middleware.rate_limit.redis_client.incr",
         new_callable=AsyncMock,
-        side_effect=RedisError(
-            "Redis unavailable"
-        ),
+        side_effect=RedisError("Redis unavailable"),
     ):
         response = await rate_limit_middleware(
             request,
@@ -97,21 +83,14 @@ async def test_global_rate_limit_fails_open_when_redis_is_down():
 
 @pytest.mark.asyncio
 async def test_booking_rate_limit_fails_open_when_redis_is_down():
-    request = make_request(
-        "/api/v1/bookings/"
-    )
+    request = make_request("/api/v1/bookings/")
 
     with patch(
-        "app.security.booking_rate_limit."
-        "redis_client.incr",
+        "app.security.booking_rate_limit.redis_client.incr",
         new_callable=AsyncMock,
-        side_effect=RedisError(
-            "Redis unavailable"
-        ),
+        side_effect=RedisError("Redis unavailable"),
     ):
-        await booking_rate_limit(
-            request
-        )
+        await booking_rate_limit(request)
 
 
 class HealthyDatabase:
@@ -127,9 +106,7 @@ class BrokenDatabase:
         self,
         statement,
     ):
-        raise SQLAlchemyError(
-            "Database unavailable"
-        )
+        raise SQLAlchemyError("Database unavailable")
 
 
 @pytest.mark.asyncio
@@ -139,19 +116,13 @@ async def test_health_is_degraded_when_redis_is_down():
     with patch(
         "app.api.v1.health.redis_client.ping",
         new_callable=AsyncMock,
-        side_effect=RedisError(
-            "Redis unavailable"
-        ),
+        side_effect=RedisError("Redis unavailable"),
     ):
-        response = await healthcheck(
-            database
-        )
+        response = await healthcheck(database)
 
     assert response.status_code == 200
 
-    data = json.loads(
-        response.body
-    )
+    data = json.loads(response.body)
 
     assert data == {
         "status": "degraded",
@@ -169,15 +140,11 @@ async def test_health_is_unhealthy_when_database_is_down():
         new_callable=AsyncMock,
         return_value=True,
     ):
-        response = await healthcheck(
-            database
-        )
+        response = await healthcheck(database)
 
     assert response.status_code == 503
 
-    data = json.loads(
-        response.body
-    )
+    data = json.loads(response.body)
 
     assert data == {
         "status": "unhealthy",

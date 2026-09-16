@@ -23,9 +23,7 @@ class ServiceBase(BaseModel):
         ge=0,
     )
 
-    booking_type: ServiceBookingType = (
-        ServiceBookingType.hourly
-    )
+    booking_type: ServiceBookingType = ServiceBookingType.hourly
 
     minimum_duration_hours: int | None = Field(
         default=None,
@@ -41,39 +39,24 @@ class ServiceBase(BaseModel):
     def validate_booking_type(self) -> Self:
         if self.booking_type == ServiceBookingType.hourly:
             if self.minimum_duration_hours is None:
-                raise ValueError(
-                    "Hourly service requires "
-                    "minimum_duration_hours"
-                )
+                raise ValueError("Hourly service requires minimum_duration_hours")
 
             if self.minimum_duration_days is not None:
-                raise ValueError(
-                    "Hourly service cannot have "
-                    "minimum_duration_days"
-                )
+                raise ValueError("Hourly service cannot have minimum_duration_days")
 
         elif self.booking_type == ServiceBookingType.daily:
             if self.minimum_duration_days is None:
-                raise ValueError(
-                    "Daily service requires "
-                    "minimum_duration_days"
-                )
+                raise ValueError("Daily service requires minimum_duration_days")
 
             if self.minimum_duration_hours is not None:
-                raise ValueError(
-                    "Daily service cannot have "
-                    "minimum_duration_hours"
-                )
+                raise ValueError("Daily service cannot have minimum_duration_hours")
 
         elif self.booking_type == ServiceBookingType.phone_only:
             if (
                 self.minimum_duration_hours is not None
                 or self.minimum_duration_days is not None
             ):
-                raise ValueError(
-                    "Phone-only service cannot have "
-                    "minimum duration"
-                )
+                raise ValueError("Phone-only service cannot have minimum duration")
 
         return self
 
@@ -81,9 +64,7 @@ class ServiceBase(BaseModel):
 class ServiceResponse(ServiceBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ServiceCreate(ServiceBase):

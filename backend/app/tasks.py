@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -8,7 +8,6 @@ from app.celery_app import celery_app
 from app.database import async_session_maker
 from app.models.booking import Booking
 from app.schemas.booking import BookingStatus
-
 
 logger = logging.getLogger("vertolit.tasks")
 
@@ -22,8 +21,7 @@ def send_booking_notification(
     starts_at: str,
 ):
     logger.info(
-        "New booking notification: "
-        "booking_id=%s service_id=%s starts_at=%s",
+        "New booking notification: booking_id=%s service_id=%s starts_at=%s",
         booking_id,
         service_id,
         starts_at,
@@ -55,22 +53,16 @@ def send_booking_reminder(
 
 
 async def _check_upcoming_bookings():
-    now = datetime.now(timezone.utc)
-    reminder_until = now + timedelta(
-        hours=24
-    )
+    now = datetime.now(UTC)
+    reminder_until = now + timedelta(hours=24)
 
     async with async_session_maker() as db:
         result = await db.execute(
             select(Booking).where(
-                Booking.status
-                == BookingStatus.confirmed.value,
+                Booking.status == BookingStatus.confirmed.value,
                 Booking.starts_at > now,
-                Booking.starts_at
-                <= reminder_until,
-                Booking.reminder_sent.is_(
-                    False
-                ),
+                Booking.starts_at <= reminder_until,
+                Booking.reminder_sent.is_(False),
             )
         )
 
@@ -86,8 +78,7 @@ async def _check_upcoming_bookings():
                 )
             except Exception:
                 logger.exception(
-                    "Failed to enqueue booking "
-                    "reminder booking_id=%s",
+                    "Failed to enqueue booking reminder booking_id=%s",
                     booking.id,
                 )
                 continue
@@ -98,8 +89,7 @@ async def _check_upcoming_bookings():
         await db.commit()
 
         logger.info(
-            "Enqueued %s booking reminders "
-            "out of %s upcoming bookings",
+            "Enqueued %s booking reminders out of %s upcoming bookings",
             reminders_enqueued,
             len(bookings),
         )
@@ -111,9 +101,7 @@ async def _check_upcoming_bookings():
     name="app.tasks.check_upcoming_bookings",
 )
 def check_upcoming_bookings():
-    count = asyncio.run(
-        _check_upcoming_bookings()
-    )
+    count = asyncio.run(_check_upcoming_bookings())
 
     return {
         "status": "checked",

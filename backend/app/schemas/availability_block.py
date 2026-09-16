@@ -15,6 +15,7 @@ class AvailabilityBlockCreate(BaseModel):
 
         return self
 
+
 class AvailabilityBlockResponse(AvailabilityBlockCreate):
     id: int
 

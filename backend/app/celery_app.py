@@ -1,7 +1,7 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.config import settings
-from celery.schedules import crontab
 
 celery_app = Celery(
     "vertolit",

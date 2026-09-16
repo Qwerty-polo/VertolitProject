@@ -1,8 +1,7 @@
 import pytest
 
-pytestmark = pytest.mark.usefixtures(
-    "admin_auth_override"
-)
+pytestmark = pytest.mark.usefixtures("admin_auth_override")
+
 
 @pytest.mark.asyncio
 async def test_root(client):

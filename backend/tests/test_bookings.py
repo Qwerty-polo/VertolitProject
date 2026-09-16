@@ -1,9 +1,9 @@
-import pytest
 import asyncio
-
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
+
+import pytest
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
@@ -13,24 +13,19 @@ def future_datetime(
 ) -> str:
     now = datetime.now(KYIV_TZ)
 
-    safe_base = (
-        now + timedelta(days=1)
-    ).replace(
+    safe_base = (now + timedelta(days=1)).replace(
         hour=12,
         minute=0,
         second=0,
         microsecond=0,
     )
 
-    value = safe_base + timedelta(
-        hours=hours_from_now - 24
-    )
+    value = safe_base + timedelta(hours=hours_from_now - 24)
 
     return value.isoformat()
 
-pytestmark = pytest.mark.usefixtures(
-    "admin_auth_override"
-)
+
+pytestmark = pytest.mark.usefixtures("admin_auth_override")
 
 
 @pytest.mark.asyncio
@@ -70,17 +65,11 @@ async def test_create_booking(client):
 
     data = response.json()
 
-    starts_at = datetime.fromisoformat(
-        data["starts_at"].replace("Z", "+00:00")
-    )
+    starts_at = datetime.fromisoformat(data["starts_at"].replace("Z", "+00:00"))
 
-    ends_at = datetime.fromisoformat(
-        data["ends_at"].replace("Z", "+00:00")
-    )
+    ends_at = datetime.fromisoformat(data["ends_at"].replace("Z", "+00:00"))
 
-    expected_starts_at = datetime.fromisoformat(
-        starts_at_value
-    )
+    expected_starts_at = datetime.fromisoformat(starts_at_value)
 
     assert starts_at == expected_starts_at
     assert (ends_at - starts_at).total_seconds() == 3 * 3600
@@ -143,10 +132,7 @@ async def test_create_booking_duration_too_short(client):
     )
 
     assert response.status_code == 400
-    assert (
-            response.json()["detail"]
-            == "Мінімальне бронювання: 3 годин"
-    )
+    assert response.json()["detail"] == "Мінімальне бронювання: 3 годин"
 
 
 @pytest.mark.asyncio
@@ -288,9 +274,7 @@ async def test_get_all_bookings(client):
 
     assert create_response.status_code == 201
 
-    response = await client.get(
-        "/api/v1/bookings/"
-    )
+    response = await client.get("/api/v1/bookings/")
 
     assert response.status_code == 200
 
@@ -299,8 +283,7 @@ async def test_get_all_bookings(client):
     assert len(data) >= 1
 
     assert any(
-        booking["customer_name"] == "Ivan"
-        and booking["service_id"] == service_id
+        booking["customer_name"] == "Ivan" and booking["service_id"] == service_id
         for booking in data
     )
 
@@ -338,16 +321,12 @@ async def test_get_booking_by_id(client):
 
     booking_id = create_response.json()["id"]
 
-    response = await client.get(
-        f"/api/v1/bookings/{booking_id}"
-    )
+    response = await client.get(f"/api/v1/bookings/{booking_id}")
 
     assert response.status_code == 200
 
     data = response.json()
-    response = await client.get(
-        f"/api/v1/bookings/{booking_id}"
-    )
+    response = await client.get(f"/api/v1/bookings/{booking_id}")
     assert response.status_code == 200
     assert data["id"] == booking_id
     assert data["customer_name"] == "Ivan"
@@ -356,9 +335,7 @@ async def test_get_booking_by_id(client):
 
 @pytest.mark.asyncio
 async def test_get_booking_not_found(client):
-    response = await client.get(
-        "/api/v1/bookings/999999"
-    )
+    response = await client.get("/api/v1/bookings/999999")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Booking not found"
@@ -493,7 +470,7 @@ async def test_booking_cannot_start_in_past(client):
 
     service_id = service_response.json()["id"]
 
-    past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    past_time = datetime.now(UTC) - timedelta(hours=1)
 
     response = await client.post(
         "/api/v1/bookings/",
@@ -568,10 +545,7 @@ async def test_cannot_confirm_overlapping_booking(client):
     )
 
     assert confirm_second.status_code == 409
-    assert (
-        confirm_second.json()["detail"]
-        == "This time slot is already confirmed"
-    )
+    assert confirm_second.json()["detail"] == "This time slot is already confirmed"
 
 
 @pytest.mark.asyncio
@@ -619,13 +593,11 @@ async def test_concurrent_confirmation_allows_only_one_booking(
 
     first_confirm, second_confirm = await asyncio.gather(
         client.patch(
-            f"/api/v1/bookings/"
-            f"{first_booking_id}/status",
+            f"/api/v1/bookings/{first_booking_id}/status",
             json={"status": "confirmed"},
         ),
         client.patch(
-            f"/api/v1/bookings/"
-            f"{second_booking_id}/status",
+            f"/api/v1/bookings/{second_booking_id}/status",
             json={"status": "confirmed"},
         ),
     )
@@ -655,9 +627,7 @@ async def test_create_booking_sends_celery_notification(client):
     service_id = service_response.json()["id"]
     starts_at = future_datetime()
 
-    with patch(
-        "app.api.v1.bookings.send_booking_notification.delay"
-    ) as delay_mock:
+    with patch("app.api.v1.bookings.send_booking_notification.delay") as delay_mock:
         response = await client.post(
             "/api/v1/bookings/",
             json={
@@ -682,9 +652,7 @@ async def test_create_booking_sends_celery_notification(client):
     assert called_args[0] == data["id"]
     assert called_args[1] == service_id
 
-    celery_starts_at = datetime.fromisoformat(
-        called_args[2].replace("Z", "+00:00")
-    )
+    celery_starts_at = datetime.fromisoformat(called_args[2].replace("Z", "+00:00"))
 
     response_starts_at = datetime.fromisoformat(
         data["starts_at"].replace("Z", "+00:00")
@@ -712,11 +680,8 @@ async def test_create_booking_survives_celery_enqueue_failure(
     service_id = service_response.json()["id"]
 
     with patch(
-        "app.api.v1.bookings."
-        "send_booking_notification.delay",
-        side_effect=RuntimeError(
-            "Celery broker unavailable"
-        ),
+        "app.api.v1.bookings.send_booking_notification.delay",
+        side_effect=RuntimeError("Celery broker unavailable"),
     ):
         response = await client.post(
             "/api/v1/bookings/",
@@ -738,9 +703,7 @@ async def test_create_booking_survives_celery_enqueue_failure(
     assert data["status"] == "pending"
     assert data["service_id"] == service_id
 
-    booking_response = await client.get(
-        f"/api/v1/bookings/{data['id']}"
-    )
+    booking_response = await client.get(f"/api/v1/bookings/{data['id']}")
 
     assert booking_response.status_code == 200
     assert booking_response.json()["id"] == data["id"]
@@ -778,10 +741,7 @@ async def test_create_booking_duration_too_long(client):
     )
 
     assert response.status_code == 400
-    assert (
-        response.json()["detail"]
-        == "Максимальне бронювання: 12 годин"
-    )
+    assert response.json()["detail"] == "Максимальне бронювання: 12 годин"
 
 
 @pytest.mark.asyncio
@@ -799,10 +759,7 @@ async def test_create_daily_booking(client):
 
     service_id = service_response.json()["id"]
 
-    check_in = (
-        datetime.now(KYIV_TZ).date()
-        + timedelta(days=3)
-    )
+    check_in = datetime.now(KYIV_TZ).date() + timedelta(days=3)
 
     check_out = check_in + timedelta(days=1)
 
@@ -827,21 +784,11 @@ async def test_create_daily_booking(client):
     assert data["status"] == "pending"
 
     assert (
-            datetime.fromisoformat(
-                data["starts_at"]
-            )
-            .astimezone(KYIV_TZ)
-            .date()
-            == check_in
+        datetime.fromisoformat(data["starts_at"]).astimezone(KYIV_TZ).date() == check_in
     )
 
     assert (
-            datetime.fromisoformat(
-                data["ends_at"]
-            )
-            .astimezone(KYIV_TZ)
-            .date()
-            == check_out
+        datetime.fromisoformat(data["ends_at"]).astimezone(KYIV_TZ).date() == check_out
     )
 
 
@@ -860,10 +807,7 @@ async def test_daily_booking_rejects_invalid_dates(
 
     service_id = service_response.json()["id"]
 
-    check_in = (
-        datetime.now(KYIV_TZ).date()
-        + timedelta(days=3)
-    )
+    check_in = datetime.now(KYIV_TZ).date() + timedelta(days=3)
 
     response = await client.post(
         "/api/v1/bookings/",
@@ -879,13 +823,7 @@ async def test_daily_booking_rejects_invalid_dates(
 
     assert response.status_code == 400
 
-    assert (
-        response.json()["detail"]
-        == (
-            "Дата виїзду повинна бути "
-            "пізніше дати заїзду"
-        )
-    )
+    assert response.json()["detail"] == ("Дата виїзду повинна бути пізніше дати заїзду")
 
 
 @pytest.mark.asyncio
@@ -914,10 +852,7 @@ async def test_phone_only_service_cannot_be_booked_online(
 
     assert response.status_code == 400
 
-    assert (
-        response.json()["detail"]
-        == "This service is booked by phone"
-    )
+    assert response.json()["detail"] == "This service is booked by phone"
 
 
 @pytest.mark.asyncio
@@ -935,10 +870,7 @@ async def test_daily_booking_conflicts_with_confirmed_booking(
 
     service_id = service_response.json()["id"]
 
-    check_in = (
-        datetime.now(KYIV_TZ).date()
-        + timedelta(days=5)
-    )
+    check_in = datetime.now(KYIV_TZ).date() + timedelta(days=5)
 
     check_out = check_in + timedelta(days=2)
 
@@ -959,10 +891,7 @@ async def test_daily_booking_conflicts_with_confirmed_booking(
     first_booking_id = first_response.json()["id"]
 
     confirm_response = await client.patch(
-        (
-            f"/api/v1/bookings/"
-            f"{first_booking_id}/status"
-        ),
+        (f"/api/v1/bookings/{first_booking_id}/status"),
         json={
             "status": "confirmed",
         },
@@ -976,18 +905,10 @@ async def test_daily_booking_conflicts_with_confirmed_booking(
             "service_id": service_id,
             "customer_name": "Petro",
             "customer_phone": "+380992223344",
-            "check_in_date": (
-                check_in
-                + timedelta(days=1)
-            ).isoformat(),
-            "check_out_date": (
-                check_out
-                + timedelta(days=1)
-            ).isoformat(),
+            "check_in_date": (check_in + timedelta(days=1)).isoformat(),
+            "check_out_date": (check_out + timedelta(days=1)).isoformat(),
             "guests": 2,
         },
     )
 
     assert second_response.status_code == 409
-
-

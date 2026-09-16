@@ -1,5 +1,6 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+
 from app.config import settings
 
 # Створюємо асинхронний рушій (engine)
@@ -11,10 +12,9 @@ engine = create_async_engine(
 )
 # Фабрика для створення сесій бази даних
 async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    engine, class_=AsyncSession, expire_on_commit=False
 )
+
 
 # Базовий клас, від якого будуть успадковуватися всі наші моделі
 class Base(DeclarativeBase):

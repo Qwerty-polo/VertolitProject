@@ -26,9 +26,7 @@ def make_request() -> Request:
 async def test_rate_limit_allows_request():
     request = make_request()
 
-    call_next = AsyncMock(
-        return_value=JSONResponse({"status": "ok"})
-    )
+    call_next = AsyncMock(return_value=JSONResponse({"status": "ok"}))
 
     with (
         patch(
@@ -57,9 +55,7 @@ async def test_rate_limit_allows_request():
 async def test_rate_limit_blocks_request_over_limit():
     request = make_request()
 
-    call_next = AsyncMock(
-        return_value=JSONResponse({"status": "ok"})
-    )
+    call_next = AsyncMock(return_value=JSONResponse({"status": "ok"}))
 
     with (
         patch(
@@ -87,9 +83,7 @@ async def test_rate_limit_blocks_request_over_limit():
 async def test_rate_limit_sets_ttl_only_for_first_request():
     request = make_request()
 
-    call_next = AsyncMock(
-        return_value=JSONResponse({"status": "ok"})
-    )
+    call_next = AsyncMock(return_value=JSONResponse({"status": "ok"}))
 
     with (
         patch(

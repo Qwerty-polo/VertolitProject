@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -24,7 +24,7 @@ async def test_upcoming_booking_creates_reminder(
         await db.commit()
         await db.refresh(service)
 
-        starts_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        starts_at = datetime.now(UTC) + timedelta(hours=2)
 
         booking = Booking(
             service_id=service.id,
@@ -49,9 +49,7 @@ async def test_upcoming_booking_creates_reminder(
             "app.tasks.async_session_maker",
             test_db_session_maker,
         ),
-        patch(
-            "app.tasks.send_booking_reminder.delay"
-        ) as delay_mock,
+        patch("app.tasks.send_booking_reminder.delay") as delay_mock,
     ):
         count = await _check_upcoming_bookings()
 
@@ -88,7 +86,7 @@ async def test_reminder_is_not_sent_twice(
         await db.commit()
         await db.refresh(service)
 
-        starts_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        starts_at = datetime.now(UTC) + timedelta(hours=2)
 
         booking = Booking(
             service_id=service.id,
@@ -110,9 +108,7 @@ async def test_reminder_is_not_sent_twice(
             "app.tasks.async_session_maker",
             test_db_session_maker,
         ),
-        patch(
-            "app.tasks.send_booking_reminder.delay"
-        ) as delay_mock,
+        patch("app.tasks.send_booking_reminder.delay") as delay_mock,
     ):
         count = await _check_upcoming_bookings()
 
@@ -136,7 +132,7 @@ async def test_pending_booking_does_not_receive_reminder(
         await db.commit()
         await db.refresh(service)
 
-        starts_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        starts_at = datetime.now(UTC) + timedelta(hours=2)
 
         booking = Booking(
             service_id=service.id,
@@ -158,9 +154,7 @@ async def test_pending_booking_does_not_receive_reminder(
             "app.tasks.async_session_maker",
             test_db_session_maker,
         ),
-        patch(
-            "app.tasks.send_booking_reminder.delay"
-        ) as delay_mock,
+        patch("app.tasks.send_booking_reminder.delay") as delay_mock,
     ):
         count = await _check_upcoming_bookings()
 
@@ -184,20 +178,14 @@ async def test_failed_reminder_enqueue_is_retried_later(
         await db.commit()
         await db.refresh(service)
 
-        starts_at = (
-            datetime.now(timezone.utc)
-            + timedelta(hours=2)
-        )
+        starts_at = datetime.now(UTC) + timedelta(hours=2)
 
         booking = Booking(
             service_id=service.id,
             customer_name="Ivan",
             customer_phone="+380991112233",
             starts_at=starts_at,
-            ends_at=(
-                starts_at
-                + timedelta(hours=3)
-            ),
+            ends_at=(starts_at + timedelta(hours=3)),
             guests=4,
             status="confirmed",
             comment=None,
@@ -216,16 +204,11 @@ async def test_failed_reminder_enqueue_is_retried_later(
             test_db_session_maker,
         ),
         patch(
-            "app.tasks."
-            "send_booking_reminder.delay",
-            side_effect=RuntimeError(
-                "Celery broker unavailable"
-            ),
+            "app.tasks.send_booking_reminder.delay",
+            side_effect=RuntimeError("Celery broker unavailable"),
         ) as delay_mock,
     ):
-        count = await (
-            _check_upcoming_bookings()
-        )
+        count = await _check_upcoming_bookings()
 
     assert count == 0
     delay_mock.assert_called_once()
@@ -237,7 +220,4 @@ async def test_failed_reminder_enqueue_is_retried_later(
         )
 
         assert saved_booking is not None
-        assert (
-            saved_booking.reminder_sent
-            is False
-        )
+        assert saved_booking.reminder_sent is False

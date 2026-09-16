@@ -1,9 +1,12 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-import logging
+
 from app.cache import invalidate_availability_cache
 from app.dependencies import SessionDep
+from app.enums import ServiceBookingType
 from app.models.booking import Booking
 from app.models.service import Service
 from app.schemas.booking import (
@@ -12,6 +15,7 @@ from app.schemas.booking import (
     BookingStatus,
     BookingStatusUpdate,
 )
+from app.security.admin_auth import require_admin
 from app.security.booking_rate_limit import booking_rate_limit
 from app.services.booking_service import (
     calculate_booking_end,
@@ -22,8 +26,6 @@ from app.services.booking_service import (
     validate_minimum_advance_booking,
 )
 from app.tasks import send_booking_notification
-from app.security.admin_auth import require_admin
-from app.enums import ServiceBookingType
 
 logger = logging.getLogger("vertolit")
 router = APIRouter(
@@ -40,9 +42,7 @@ router = APIRouter(
 async def get_all_bookings(
     db: SessionDep,
 ):
-    result = await db.execute(
-        select(Booking)
-    )
+    result = await db.execute(select(Booking))
 
     bookings = result.scalars().all()
 
@@ -62,17 +62,11 @@ async def get_all_bookings(
         },
     },
 )
-
-
 async def get_booking_by_id(
     booking_id: int,
     db: SessionDep,
 ):
-    result = await db.execute(
-        select(Booking).where(
-            Booking.id == booking_id
-        )
-    )
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
 
     booking = result.scalar_one_or_none()
 
@@ -98,26 +92,22 @@ async def get_booking_by_id(
                     "examples": {
                         "business_hours": {
                             "summary": "Outside business hours",
-                            "value": {
-                                "detail": "Booking cannot start before 10:00"
-                            },
+                            "value": {"detail": "Booking cannot start before 10:00"},
                         },
                         "minimum_duration": {
                             "summary": "Duration is too short",
-                            "value": {
-                                "detail": "Minimum booking duration is 3 hours"
-                            },
+                            "value": {"detail": "Minimum booking duration is 3 hours"},
                         },
                         "maximum_duration": {
                             "summary": "Duration is too long",
-                            "value": {
-                                "detail": "Maximum booking duration is 12 hours"
-                            },
+                            "value": {"detail": "Maximum booking duration is 12 hours"},
                         },
                         "minimum_advance": {
                             "summary": "Booking is too soon",
                             "value": {
-                                "detail": "Booking must be made at least 2 hours in advance"
+                                "detail": (
+                                    "Booking must be made at least 2 hours in advance"
+                                )
                             },
                         },
                     }
@@ -127,31 +117,21 @@ async def get_booking_by_id(
         404: {
             "description": "Service not found",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Service not found"
-                    }
-                }
+                "application/json": {"example": {"detail": "Service not found"}}
             },
         },
         409: {
             "description": "Time slot conflict",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "This time slot is already booked"
-                    }
+                    "example": {"detail": "This time slot is already booked"}
                 }
             },
         },
         429: {
             "description": "Booking rate limit exceeded",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Too many booking attempts"
-                    }
-                }
+                "application/json": {"example": {"detail": "Too many booking attempts"}}
             },
         },
     },
@@ -161,9 +141,7 @@ async def create_booking(
     db: SessionDep,
 ):
     result = await db.execute(
-        select(Service).where(
-            Service.id == booking_in.service_id
-        )
+        select(Service).where(Service.id == booking_in.service_id)
     )
 
     service = result.scalar_one_or_none()
@@ -174,33 +152,23 @@ async def create_booking(
             detail="Service not found",
         )
 
-    if (
-            service.booking_type
-            == ServiceBookingType.phone_only.value
-    ):
+    if service.booking_type == ServiceBookingType.phone_only.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This service is booked by phone",
         )
 
     try:
-        if (
-                service.booking_type
-                == ServiceBookingType.hourly.value
-        ):
+        if service.booking_type == ServiceBookingType.hourly.value:
             if booking_in.starts_at is None:
-                raise ValueError(
-                    "Для цієї послуги потрібно обрати час"
-                )
+                raise ValueError("Для цієї послуги потрібно обрати час")
 
             starts_at = booking_in.starts_at
 
             ends_at = calculate_booking_end(
                 service=service,
                 starts_at=starts_at,
-                requested_duration_hours=(
-                    booking_in.duration_hours
-                ),
+                requested_duration_hours=(booking_in.duration_hours),
             )
 
             validate_minimum_advance_booking(
@@ -212,34 +180,18 @@ async def create_booking(
                 ends_at=ends_at,
             )
 
-        elif (
-                service.booking_type
-                == ServiceBookingType.daily.value
-        ):
-            if (
-                    booking_in.check_in_date is None
-                    or booking_in.check_out_date is None
-            ):
-                raise ValueError(
-                    "Оберіть дату заїзду та дату виїзду"
-                )
+        elif service.booking_type == ServiceBookingType.daily.value:
+            if booking_in.check_in_date is None or booking_in.check_out_date is None:
+                raise ValueError("Оберіть дату заїзду та дату виїзду")
 
-            starts_at, ends_at = (
-                calculate_daily_booking_interval(
-                    service=service,
-                    check_in_date=(
-                        booking_in.check_in_date
-                    ),
-                    check_out_date=(
-                        booking_in.check_out_date
-                    ),
-                )
+            starts_at, ends_at = calculate_daily_booking_interval(
+                service=service,
+                check_in_date=(booking_in.check_in_date),
+                check_out_date=(booking_in.check_out_date),
             )
 
         else:
-            raise ValueError(
-                "Unsupported booking type"
-            )
+            raise ValueError("Unsupported booking type")
 
     except ValueError as exc:
         raise HTTPException(
@@ -283,8 +235,7 @@ async def create_booking(
         )
     except Exception:
         logger.exception(
-            "Failed to enqueue booking notification "
-            "booking_id=%s service_id=%s",
+            "Failed to enqueue booking notification booking_id=%s service_id=%s",
             booking.id,
             booking.service_id,
         )
@@ -300,20 +251,14 @@ async def create_booking(
         404: {
             "description": "Booking not found",
             "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Booking not found"
-                    }
-                }
+                "application/json": {"example": {"detail": "Booking not found"}}
             },
         },
         409: {
             "description": "Confirmed booking conflict",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "This time slot is already confirmed"
-                    }
+                    "example": {"detail": "This time slot is already confirmed"}
                 }
             },
         },
@@ -324,11 +269,7 @@ async def update_booking_status(
     status_in: BookingStatusUpdate,
     db: SessionDep,
 ):
-    result = await db.execute(
-        select(Booking).where(
-            Booking.id == booking_id
-        )
-    )
+    result = await db.execute(select(Booking).where(Booking.id == booking_id))
 
     booking = result.scalar_one_or_none()
 
@@ -358,19 +299,16 @@ async def update_booking_status(
         await db.rollback()
 
         if (
-                getattr(
-                    exc.orig,
-                    "sqlstate",
-                    None,
-                )
-                == "23P01"
+            getattr(
+                exc.orig,
+                "sqlstate",
+                None,
+            )
+            == "23P01"
         ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "This time slot "
-                    "is already confirmed"
-                ),
+                detail=("This time slot is already confirmed"),
             ) from exc
 
         raise

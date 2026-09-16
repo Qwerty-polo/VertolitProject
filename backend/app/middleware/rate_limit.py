@@ -8,7 +8,6 @@ from redis.exceptions import RedisError
 from app.config import settings
 from app.redis import redis_client
 
-
 logger = logging.getLogger("vertolit")
 
 REQUEST_LIMIT = settings.global_rate_limit
@@ -19,32 +18,17 @@ async def rate_limit_middleware(
     request: Request,
     call_next,
 ):
-    if (
-        request.url.path.rstrip("/")
-        == "/api/v1/health"
-    ):
+    if request.url.path.rstrip("/") == "/api/v1/health":
         return await call_next(request)
 
-    client_ip = (
-        request.client.host
-        if request.client
-        else "unknown"
-    )
+    client_ip = request.client.host if request.client else "unknown"
 
-    current_window = int(
-        time.time() // WINDOW_SECONDS
-    )
+    current_window = int(time.time() // WINDOW_SECONDS)
 
-    redis_key = (
-        f"rate_limit:"
-        f"{client_ip}:"
-        f"{current_window}"
-    )
+    redis_key = f"rate_limit:{client_ip}:{current_window}"
 
     try:
-        request_count = await redis_client.incr(
-            redis_key
-        )
+        request_count = await redis_client.incr(redis_key)
 
         if request_count == 1:
             await redis_client.expire(
@@ -67,9 +51,7 @@ async def rate_limit_middleware(
     if request_count > REQUEST_LIMIT:
         return JSONResponse(
             status_code=429,
-            content={
-                "detail": "Too many requests"
-            },
+            content={"detail": "Too many requests"},
         )
 
     return await call_next(request)

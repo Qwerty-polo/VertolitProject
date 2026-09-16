@@ -1,22 +1,21 @@
-import pytest_asyncio
-import app.models
+from unittest.mock import AsyncMock, patch
+
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from unittest.mock import AsyncMock, patch
 
+import app.models
 from app.config import settings
 from app.database import Base
 from app.dependencies import get_db
-
 from app.main import app
 from app.security.admin_auth import require_admin
-from sqlalchemy import text
 
 test_engine = create_async_engine(
     settings.test_database_url,
@@ -43,9 +42,7 @@ def admin_auth_override():
     async def fake_require_admin():
         return "test-admin-token"
 
-    app.dependency_overrides[
-        require_admin
-    ] = fake_require_admin
+    app.dependency_overrides[require_admin] = fake_require_admin
 
     yield
 
@@ -58,23 +55,14 @@ def admin_auth_override():
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database():
     async with test_engine.begin() as connection:
-        await connection.execute(
-            text(
-                "CREATE EXTENSION "
-                "IF NOT EXISTS btree_gist"
-            )
-        )
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
 
-        await connection.run_sync(
-            Base.metadata.create_all
-        )
+        await connection.run_sync(Base.metadata.create_all)
 
     yield
 
     async with test_engine.begin() as connection:
-        await connection.run_sync(
-            Base.metadata.drop_all
-        )
+        await connection.run_sync(Base.metadata.drop_all)
 
     await test_engine.dispose()
 
@@ -82,8 +70,7 @@ async def prepare_database():
 @pytest_asyncio.fixture
 async def client():
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
 

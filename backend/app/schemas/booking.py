@@ -1,5 +1,5 @@
-from datetime import date, datetime, timezone
-from enum import Enum
+from datetime import UTC, date, datetime
+from enum import StrEnum
 
 from pydantic import (
     BaseModel,
@@ -31,9 +31,7 @@ class BookingCreate(BaseModel):
 
     starts_at: datetime | None = Field(
         default=None,
-        description=(
-            "Дата і час початку для погодинного бронювання"
-        ),
+        description=("Дата і час початку для погодинного бронювання"),
     )
 
     check_in_date: date | None = Field(
@@ -61,9 +59,7 @@ class BookingCreate(BaseModel):
     duration_hours: int | None = Field(
         default=None,
         ge=1,
-        description=(
-            "Тривалість погодинного бронювання"
-        ),
+        description=("Тривалість погодинного бронювання"),
     )
 
     @field_validator("starts_at")
@@ -76,19 +72,15 @@ class BookingCreate(BaseModel):
             return value
 
         if value.tzinfo is None:
-            raise ValueError(
-                "Timezone is required"
-            )
+            raise ValueError("Timezone is required")
 
-        if value <= datetime.now(timezone.utc):
-            raise ValueError(
-                "Booking start time must be in the future"
-            )
+        if value <= datetime.now(UTC):
+            raise ValueError("Booking start time must be in the future")
 
         return value
 
 
-class BookingStatus(str, Enum):
+class BookingStatus(StrEnum):
     pending = "pending"
     confirmed = "confirmed"
     cancelled = "cancelled"
@@ -106,9 +98,7 @@ class BookingResponse(BaseModel):
     status: BookingStatus
     comment: str | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookingStatusUpdate(BaseModel):

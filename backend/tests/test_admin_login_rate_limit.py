@@ -59,22 +59,12 @@ async def test_admin_login_rate_limit_blocks_sixth_attempt():
             new_callable=AsyncMock,
         ),
     ):
-        with pytest.raises(
-            HTTPException
-        ) as exc_info:
-            await admin_login_rate_limit(
-                request
-            )
+        with pytest.raises(HTTPException) as exc_info:
+            await admin_login_rate_limit(request)
 
-    assert (
-        exc_info.value.status_code
-        == 429
-    )
+    assert exc_info.value.status_code == 429
 
-    assert (
-        exc_info.value.detail
-        == "Too many admin login attempts"
-    )
+    assert exc_info.value.detail == "Too many admin login attempts"
 
 
 @pytest.mark.asyncio

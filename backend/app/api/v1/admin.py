@@ -32,9 +32,7 @@ router = APIRouter(
 @router.post(
     "/login",
     response_model=AdminLoginResponse,
-    dependencies=[
-        Depends(admin_login_rate_limit)
-    ],
+    dependencies=[Depends(admin_login_rate_limit)],
 )
 async def admin_login(
     login_data: AdminLoginRequest,

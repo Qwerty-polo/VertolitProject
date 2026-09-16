@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 from app.enums import ServiceBookingType
 
-
 if TYPE_CHECKING:
     from .availability_block import AvailabilityBlock
     from .booking import Booking
@@ -17,8 +16,7 @@ class Service(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "booking_type IN "
-            "('hourly', 'daily', 'phone_only')",
+            "booking_type IN ('hourly', 'daily', 'phone_only')",
             name="ck_services_booking_type",
         ),
     )
@@ -57,9 +55,7 @@ class Service(Base):
         nullable=True,
     )
 
-    bookings: Mapped[list["Booking"]] = relationship(
-        back_populates="service"
-    )
+    bookings: Mapped[list["Booking"]] = relationship(back_populates="service")
 
     availability_blocks: Mapped[list["AvailabilityBlock"]] = relationship(
         back_populates="service"

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -11,6 +11,7 @@ from app.services.booking_service import (
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
+
 def test_calculate_booking_end_with_requested_duration():
     service = Service(
         name="Sauna",
@@ -20,8 +21,12 @@ def test_calculate_booking_end_with_requested_duration():
     )
 
     starts_at = datetime(
-        2026, 9, 20, 10, 0,
-        tzinfo=timezone.utc,
+        2026,
+        9,
+        20,
+        10,
+        0,
+        tzinfo=UTC,
     )
 
     ends_at = calculate_booking_end(
@@ -42,8 +47,12 @@ def test_calculate_booking_end_uses_minimum_duration():
     )
 
     starts_at = datetime(
-        2026, 9, 20, 10, 0,
-        tzinfo=timezone.utc,
+        2026,
+        9,
+        20,
+        10,
+        0,
+        tzinfo=UTC,
     )
 
     ends_at = calculate_booking_end(
@@ -64,13 +73,17 @@ def test_calculate_booking_end_rejects_short_duration():
     )
 
     starts_at = datetime(
-        2026, 9, 20, 10, 0,
-        tzinfo=timezone.utc,
+        2026,
+        9,
+        20,
+        10,
+        0,
+        tzinfo=UTC,
     )
 
     with pytest.raises(
         ValueError,
-            match="Мінімальне бронювання: 3 годин",
+        match="Мінімальне бронювання: 3 годин",
     ):
         calculate_booking_end(
             service=service,
@@ -81,11 +94,19 @@ def test_calculate_booking_end_rejects_short_duration():
 
 def test_booking_within_business_hours_is_valid():
     starts_at = datetime(
-        2026, 9, 20, 10, 0,
+        2026,
+        9,
+        20,
+        10,
+        0,
         tzinfo=KYIV_TZ,
     )
     ends_at = datetime(
-        2026, 9, 20, 13, 0,
+        2026,
+        9,
+        20,
+        13,
+        0,
         tzinfo=KYIV_TZ,
     )
 
@@ -97,11 +118,19 @@ def test_booking_within_business_hours_is_valid():
 
 def test_booking_cannot_start_before_business_hours():
     starts_at = datetime(
-        2026, 9, 20, 9, 0,
+        2026,
+        9,
+        20,
+        9,
+        0,
         tzinfo=KYIV_TZ,
     )
     ends_at = datetime(
-        2026, 9, 20, 12, 0,
+        2026,
+        9,
+        20,
+        12,
+        0,
         tzinfo=KYIV_TZ,
     )
 
@@ -117,11 +146,19 @@ def test_booking_cannot_start_before_business_hours():
 
 def test_booking_cannot_end_after_business_hours():
     starts_at = datetime(
-        2026, 9, 20, 20, 0,
+        2026,
+        9,
+        20,
+        20,
+        0,
         tzinfo=KYIV_TZ,
     )
     ends_at = datetime(
-        2026, 9, 20, 23, 0,
+        2026,
+        9,
+        20,
+        23,
+        0,
         tzinfo=KYIV_TZ,
     )
 
@@ -137,11 +174,19 @@ def test_booking_cannot_end_after_business_hours():
 
 def test_booking_can_end_exactly_at_closing_time():
     starts_at = datetime(
-        2026, 9, 20, 19, 0,
+        2026,
+        9,
+        20,
+        19,
+        0,
         tzinfo=KYIV_TZ,
     )
     ends_at = datetime(
-        2026, 9, 20, 22, 0,
+        2026,
+        9,
+        20,
+        22,
+        0,
         tzinfo=KYIV_TZ,
     )
 
@@ -170,7 +215,7 @@ def test_calculate_booking_end_rejects_too_long_duration():
 
     with pytest.raises(
         ValueError,
-            match="Максимальне бронювання: 12 годин",
+        match="Максимальне бронювання: 12 годин",
     ):
         calculate_booking_end(
             service=service,

@@ -6,7 +6,6 @@ from app.database import async_session_maker
 from app.enums import ServiceBookingType
 from app.models.service import Service
 
-
 SERVICES = [
     {
         "name": "Лазня / Баня",
@@ -47,9 +46,7 @@ async def seed_services() -> None:
     async with async_session_maker() as session:
         for service_data in SERVICES:
             result = await session.execute(
-                select(Service).where(
-                    Service.name == service_data["name"]
-                )
+                select(Service).where(Service.name == service_data["name"])
             )
 
             service = result.scalars().first()
@@ -58,25 +55,15 @@ async def seed_services() -> None:
                 service = Service(**service_data)
                 session.add(service)
 
-                print(
-                    f"Created service: "
-                    f"{service_data['name']}"
-                )
+                print(f"Created service: {service_data['name']}")
             else:
                 service.description = service_data["description"]
                 service.price = service_data["price"]
                 service.booking_type = service_data["booking_type"]
-                service.minimum_duration_hours = (
-                    service_data["minimum_duration_hours"]
-                )
-                service.minimum_duration_days = (
-                    service_data["minimum_duration_days"]
-                )
+                service.minimum_duration_hours = service_data["minimum_duration_hours"]
+                service.minimum_duration_days = service_data["minimum_duration_days"]
 
-                print(
-                    f"Updated service: "
-                    f"{service_data['name']}"
-                )
+                print(f"Updated service: {service_data['name']}")
 
         await session.commit()
 

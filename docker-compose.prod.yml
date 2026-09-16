@@ -1,0 +1,7 @@
+services:
+  backend:
+    ports: !reset []
+
+  frontend:
+    ports:
+      - "80:80"

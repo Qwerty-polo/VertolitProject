@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.service import Service
 from app.services.availability_service import build_free_slots
@@ -13,12 +13,20 @@ def test_build_free_slots_without_conflicts():
     )
 
     day_start = datetime(
-        2026, 9, 20, 10, 0,
-        tzinfo=timezone.utc,
+        2026,
+        9,
+        20,
+        10,
+        0,
+        tzinfo=UTC,
     )
     day_end = datetime(
-        2026, 9, 20, 22, 0,
-        tzinfo=timezone.utc,
+        2026,
+        9,
+        20,
+        22,
+        0,
+        tzinfo=UTC,
     )
 
     free_slots = build_free_slots(

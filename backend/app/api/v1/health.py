@@ -21,9 +21,7 @@ async def healthcheck(
     redis_status = "ok"
 
     try:
-        await db.execute(
-            text("SELECT 1")
-        )
+        await db.execute(text("SELECT 1"))
     except SQLAlchemyError:
         database_status = "error"
 

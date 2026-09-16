@@ -1,44 +1,62 @@
+import json
+import logging
+from datetime import (
+    date,
+    datetime,
+    time,
+)
+from zoneinfo import ZoneInfo
+
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     Query,
 )
+from redis.exceptions import RedisError
 from sqlalchemy import select
-from typing import List
-
 from starlette import status
 
-from app.models import Booking, AvailabilityBlock
-from app.models.service import Service
-from app.schemas.booking import BookingStatus
-from app.schemas.service import ServiceResponse, ServiceCreate
-from app.dependencies import SessionDep
-from datetime import date, datetime, time
-from fastapi import Query
-from app.services.availability_service import build_free_slots
-
-import json
-from app.redis import redis_client
-
-from zoneinfo import ZoneInfo
 from app.config import settings
-
-from app.security.admin_auth import require_admin
-
+from app.dependencies import SessionDep
 from app.enums import ServiceBookingType
-# Створюємо роутер
-router = APIRouter(prefix="/services", tags=["Services"])
+from app.models import (
+    AvailabilityBlock,
+    Booking,
+)
+from app.models.service import Service
+from app.redis import redis_client
+from app.schemas.booking import BookingStatus
+from app.schemas.service import (
+    ServiceCreate,
+    ServiceResponse,
+)
+from app.security.admin_auth import require_admin
+from app.services.availability_service import (
+    build_free_slots,
+)
+
+logger = logging.getLogger("vertolit")
+
+router = APIRouter(
+    prefix="/services",
+    tags=["Services"],
+)
 
 KYIV_TZ = ZoneInfo(settings.timezone)
 
-# Сам endpoint
-@router.get("/", response_model=List[ServiceResponse])
-async def get_all_services(db: SessionDep):
-    # Робимо асинхронний запит до БД: SELECT * FROM services;
+
+@router.get(
+    "/",
+    response_model=list[ServiceResponse],
+)
+async def get_all_services(
+    db: SessionDep,
+):
     result = await db.execute(select(Service))
-    # Витягуємо всі знайдені рядки
+
     services = result.scalars().all()
+
     return services
 
 
@@ -48,13 +66,17 @@ async def get_all_services(db: SessionDep):
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_admin)],
 )
-async def create_service(service_in: ServiceCreate,
-                         db: SessionDep):
+async def create_service(
+    service_in: ServiceCreate,
+    db: SessionDep,
+):
     service = Service(**service_in.model_dump())
 
     db.add(service)
+
     await db.commit()
     await db.refresh(service)
+
     return service
 
 
@@ -64,44 +86,55 @@ async def get_service_availability(
     db: SessionDep,
     date_value: date = Query(alias="date"),
 ):
-    result = await db.execute(
-        select(Service).where(Service.id == service_id)
-    )
+    result = await db.execute(select(Service).where(Service.id == service_id))
+
     service = result.scalar_one_or_none()
 
     if service is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=(status.HTTP_404_NOT_FOUND),
             detail="Service not found",
         )
-    if (
-            service.booking_type
-            != ServiceBookingType.hourly.value
-    ):
+
+    if service.booking_type != ServiceBookingType.hourly.value:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Hourly availability is only "
-                "available for hourly services"
-            ),
+            status_code=(status.HTTP_400_BAD_REQUEST),
+            detail=("Hourly availability is only available for hourly services"),
         )
 
     cache_key = f"availability:{service_id}:{date_value.isoformat()}"
 
-    cached = await redis_client.get(cache_key)
+    cached = None
+
+    try:
+        cached = await redis_client.get(cache_key)
+
+    except RedisError as exc:
+        logger.warning(
+            "Availability cache read failed key=%s error=%s",
+            cache_key,
+            type(exc).__name__,
+        )
 
     if cached is not None:
-        return json.loads(cached)
+        try:
+            return json.loads(cached)
+
+        except json.JSONDecodeError:
+            logger.warning(
+                "Invalid availability cache value key=%s",
+                cache_key,
+            )
 
     day_start = datetime.combine(
         date_value,
-        time(hour=settings.business_start_hour),
+        time(hour=(settings.business_start_hour)),
         tzinfo=KYIV_TZ,
     )
 
     day_end = datetime.combine(
         date_value,
-        time(hour=settings.business_end_hour),
+        time(hour=(settings.business_end_hour)),
         tzinfo=KYIV_TZ,
     )
 
@@ -113,6 +146,7 @@ async def get_service_availability(
             Booking.ends_at > day_start,
         )
     )
+
     bookings = bookings_result.scalars().all()
 
     blocks_result = await db.execute(
@@ -122,6 +156,7 @@ async def get_service_availability(
             AvailabilityBlock.ends_at > day_start,
         )
     )
+
     blocks = blocks_result.scalars().all()
 
     free_slots = build_free_slots(
@@ -132,15 +167,20 @@ async def get_service_availability(
         blocks=blocks,
     )
 
-    serialized_slots = [
-        slot.isoformat()
-        for slot in free_slots
-    ]
+    serialized_slots = [slot.isoformat() for slot in free_slots]
 
-    await redis_client.set(
-        cache_key,
-        json.dumps(serialized_slots),
-        ex=settings.availability_cache_ttl,
-    )
+    try:
+        await redis_client.set(
+            cache_key,
+            json.dumps(serialized_slots),
+            ex=(settings.availability_cache_ttl),
+        )
+
+    except RedisError as exc:
+        logger.warning(
+            "Availability cache write failed key=%s error=%s",
+            cache_key,
+            type(exc).__name__,
+        )
 
     return serialized_slots

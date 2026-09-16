@@ -4,7 +4,6 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-
 logger = logging.getLogger("vertolit")
 
 
@@ -45,11 +44,7 @@ async def validation_exception_handler(
     errors = []
 
     for error in exc.errors():
-        field = ".".join(
-            str(part)
-            for part in error["loc"]
-            if part != "body"
-        )
+        field = ".".join(str(part) for part in error["loc"] if part != "body")
 
         errors.append(
             {

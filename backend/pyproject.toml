@@ -1,0 +1,25 @@
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+exclude = [
+    ".venv",
+    "alembic/versions",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+[tool.ruff.lint.per-file-ignores]
+"app/api/**/*.py" = ["B008"]
+"app/security/admin_auth.py" = ["B008"]
+"app/models/*.py" = ["UP037"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

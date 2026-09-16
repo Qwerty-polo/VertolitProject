@@ -5,6 +5,7 @@ from redis.exceptions import (
     ConnectionError as RedisConnectionError,
 )
 
+
 @pytest.mark.asyncio
 async def test_healthcheck_all_services_ok(client):
     with patch(
@@ -25,11 +26,10 @@ async def test_healthcheck_all_services_ok(client):
 @pytest.mark.asyncio
 async def test_healthcheck_redis_error(client):
     with patch(
-            "app.api.v1.health.redis_client.ping",
-            new_callable=AsyncMock,
-            side_effect=RedisConnectionError(
-                "Redis unavailable"
-            )):
+        "app.api.v1.health.redis_client.ping",
+        new_callable=AsyncMock,
+        side_effect=RedisConnectionError("Redis unavailable"),
+    ):
         response = await client.get("/api/v1/health/")
 
     assert response.status_code == 200

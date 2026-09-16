@@ -5,7 +5,9 @@ import uuid
 from fastapi import Request
 
 logger = logging.getLogger("vertolit.request")
-#кожен HTTP-запит автоматично логувався, расування і дебагу запитів
+
+
+# кожен HTTP-запит автоматично логувався, расування і дебагу запитів
 async def request_logging_middleware(request: Request, call_next):
     request_id = str(uuid.uuid4())
 

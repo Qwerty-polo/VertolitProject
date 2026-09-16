@@ -9,7 +9,6 @@ from redis.exceptions import RedisError
 from app.api.v1.admin import settings
 from app.security import admin_auth
 
-
 TEST_ADMIN_PASSWORD = "test-admin-password"
 
 
@@ -86,9 +85,7 @@ async def test_admin_login_wrong_password(
 
     assert response.status_code == 401
 
-    assert response.json() == {
-        "detail": "Invalid admin password"
-    }
+    assert response.json() == {"detail": "Invalid admin password"}
 
     assert fake_admin_redis.sessions == {}
 
@@ -115,21 +112,11 @@ async def test_admin_login_creates_session_and_cookie(
 
     token = data["access_token"]
 
-    session_key = (
-        f"admin_session:{token}"
-    )
+    session_key = f"admin_session:{token}"
 
-    assert (
-        session_key
-        in fake_admin_redis.sessions
-    )
+    assert session_key in fake_admin_redis.sessions
 
-    assert (
-        response.cookies.get(
-            "vertolit_admin_session"
-        )
-        == token
-    )
+    assert response.cookies.get("vertolit_admin_session") == token
 
 
 @pytest.mark.asyncio
@@ -137,15 +124,11 @@ async def test_admin_session_requires_auth(
     client,
     fake_admin_redis,
 ):
-    response = await client.get(
-        "/api/v1/admin/session"
-    )
+    response = await client.get("/api/v1/admin/session")
 
     assert response.status_code == 401
 
-    assert response.json() == {
-        "detail": "Admin authentication required"
-    }
+    assert response.json() == {"detail": "Admin authentication required"}
 
 
 @pytest.mark.asyncio
@@ -162,15 +145,11 @@ async def test_admin_cookie_authentication(
 
     assert login_response.status_code == 200
 
-    response = await client.get(
-        "/api/v1/admin/session"
-    )
+    response = await client.get("/api/v1/admin/session")
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "authenticated": True
-    }
+    assert response.json() == {"authenticated": True}
 
 
 @pytest.mark.asyncio
@@ -178,15 +157,11 @@ async def test_protected_bookings_require_admin(
     client,
     fake_admin_redis,
 ):
-    response = await client.get(
-        "/api/v1/bookings/"
-    )
+    response = await client.get("/api/v1/bookings/")
 
     assert response.status_code == 401
 
-    assert response.json() == {
-        "detail": "Admin authentication required"
-    }
+    assert response.json() == {"detail": "Admin authentication required"}
 
 
 @pytest.mark.asyncio
@@ -203,9 +178,7 @@ async def test_admin_cookie_allows_access_to_bookings(
 
     assert login_response.status_code == 200
 
-    response = await client.get(
-        "/api/v1/bookings/"
-    )
+    response = await client.get("/api/v1/bookings/")
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
@@ -225,9 +198,7 @@ async def test_admin_bearer_token_allows_access(
 
     assert login_response.status_code == 200
 
-    token = login_response.json()[
-        "access_token"
-    ]
+    token = login_response.json()["access_token"]
 
     # Видаляємо cookie спеціально,
     # щоб перевірити саме Bearer auth.
@@ -235,10 +206,7 @@ async def test_admin_bearer_token_allows_access(
 
     response = await client.get(
         "/api/v1/bookings/",
-        headers={
-            "Authorization":
-                f"Bearer {token}"
-        },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response.status_code == 200
@@ -258,37 +226,24 @@ async def test_admin_logout_invalidates_session(
 
     assert login_response.status_code == 200
 
-    token = login_response.json()[
-        "access_token"
-    ]
+    token = login_response.json()["access_token"]
 
-    session_key = (
-        f"admin_session:{token}"
-    )
+    session_key = f"admin_session:{token}"
 
-    assert (
-        session_key
-        in fake_admin_redis.sessions
-    )
+    assert session_key in fake_admin_redis.sessions
 
     logout_response = await client.post(
         "/api/v1/admin/logout",
         headers={
-            "Origin":
-                "http://localhost:3000",
+            "Origin": "http://localhost:3000",
         },
     )
 
     assert logout_response.status_code == 204
 
-    assert (
-        session_key
-        not in fake_admin_redis.sessions
-    )
+    assert session_key not in fake_admin_redis.sessions
 
-    response = await client.get(
-        "/api/v1/admin/session"
-    )
+    response = await client.get("/api/v1/admin/session")
 
     assert response.status_code == 401
 
@@ -310,16 +265,13 @@ async def test_cookie_admin_mutation_rejects_foreign_origin(
     response = await client.post(
         "/api/v1/admin/logout",
         headers={
-            "Origin":
-                "https://evil.example",
+            "Origin": "https://evil.example",
         },
     )
 
     assert response.status_code == 403
 
-    assert response.json() == {
-        "detail": "Invalid request origin"
-    }
+    assert response.json() == {"detail": "Invalid request origin"}
 
 
 @pytest.mark.asyncio
@@ -339,8 +291,7 @@ async def test_cookie_admin_mutation_accepts_trusted_origin(
     response = await client.post(
         "/api/v1/admin/logout",
         headers={
-            "Origin":
-                "http://localhost:3000",
+            "Origin": "http://localhost:3000",
         },
     )
 
@@ -361,17 +312,14 @@ async def test_bearer_admin_mutation_does_not_require_origin(
 
     assert login_response.status_code == 200
 
-    token = login_response.json()[
-        "access_token"
-    ]
+    token = login_response.json()["access_token"]
 
     client.cookies.clear()
 
     response = await client.post(
         "/api/v1/admin/logout",
         headers={
-            "Authorization":
-                f"Bearer {token}",
+            "Authorization": f"Bearer {token}",
         },
     )
 
@@ -383,29 +331,20 @@ async def test_admin_auth_fails_closed_when_redis_is_down(
     client,
 ):
     with patch(
-        "app.security.admin_auth."
-        "redis_client.exists",
+        "app.security.admin_auth.redis_client.exists",
         new_callable=AsyncMock,
-        side_effect=RedisError(
-            "Redis unavailable"
-        ),
+        side_effect=RedisError("Redis unavailable"),
     ):
         response = await client.get(
             "/api/v1/admin/session",
             headers={
-                "Authorization":
-                    "Bearer test-token",
+                "Authorization": "Bearer test-token",
             },
         )
 
     assert response.status_code == 503
 
-    assert response.json() == {
-        "detail": (
-            "Admin authentication "
-            "service unavailable"
-        )
-    }
+    assert response.json() == {"detail": ("Admin authentication service unavailable")}
 
 
 @pytest.mark.asyncio
@@ -413,27 +352,17 @@ async def test_admin_login_fails_closed_when_rate_limiter_redis_is_down(
     client,
 ):
     with patch(
-        "app.security."
-        "admin_login_rate_limit."
-        "redis_client.incr",
+        "app.security.admin_login_rate_limit.redis_client.incr",
         new_callable=AsyncMock,
-        side_effect=RedisError(
-            "Redis unavailable"
-        ),
+        side_effect=RedisError("Redis unavailable"),
     ):
         response = await client.post(
             "/api/v1/admin/login",
             json={
-                "password":
-                    TEST_ADMIN_PASSWORD,
+                "password": TEST_ADMIN_PASSWORD,
             },
         )
 
     assert response.status_code == 503
 
-    assert response.json() == {
-        "detail": (
-            "Admin authentication "
-            "service unavailable"
-        )
-    }
+    assert response.json() == {"detail": ("Admin authentication service unavailable")}

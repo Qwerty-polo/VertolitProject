@@ -53,17 +53,12 @@ class Settings(BaseSettings):
     @property
     def allowed_cors_origins(self) -> list[str]:
         return [
-            origin.strip()
-            for origin in self.cors_origins.split(",")
-            if origin.strip()
+            origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
         ]
 
     @property
     def fastapi_docs_enabled(self) -> bool:
-        return (
-            self.docs_enabled
-            and not self.is_production
-        )
+        return self.docs_enabled and not self.is_production
 
     @model_validator(mode="after")
     def validate_production_settings(
@@ -73,26 +68,16 @@ class Settings(BaseSettings):
             return self
 
         if not self.admin_cookie_secure:
-            raise ValueError(
-                "ADMIN_COOKIE_SECURE must be true "
-                "in production"
-            )
+            raise ValueError("ADMIN_COOKIE_SECURE must be true in production")
 
         unsafe_origins = [
             origin
-            for origin
-            in self.allowed_cors_origins
-            if (
-                "localhost" in origin
-                or "127.0.0.1" in origin
-            )
+            for origin in self.allowed_cors_origins
+            if ("localhost" in origin or "127.0.0.1" in origin)
         ]
 
         if unsafe_origins:
-            raise ValueError(
-                "localhost CORS origins are not "
-                "allowed in production"
-            )
+            raise ValueError("localhost CORS origins are not allowed in production")
 
         return self
 

@@ -1,9 +1,9 @@
 from datetime import (
+    UTC,
     date,
     datetime,
     time,
     timedelta,
-    timezone,
 )
 from zoneinfo import ZoneInfo
 
@@ -15,16 +15,11 @@ from app.models.booking import Booking
 from app.models.service import Service
 from app.schemas.booking import BookingStatus
 
-
 KYIV_TZ = ZoneInfo(settings.timezone)
 
-BUSINESS_START = time(
-    hour=settings.business_start_hour
-)
+BUSINESS_START = time(hour=settings.business_start_hour)
 
-BUSINESS_END = time(
-    hour=settings.business_end_hour
-)
+BUSINESS_END = time(hour=settings.business_end_hour)
 
 
 def validate_booking_within_business_hours(
@@ -35,21 +30,15 @@ def validate_booking_within_business_hours(
     local_end = ends_at.astimezone(KYIV_TZ)
 
     if local_start.date() != local_end.date():
-        raise ValueError(
-            "Booking must start and end on the same day"
-        )
+        raise ValueError("Booking must start and end on the same day")
 
     if local_start.time() < BUSINESS_START:
         raise ValueError(
-            f"Booking cannot start before "
-            f"{BUSINESS_START.strftime('%H:%M')}"
+            f"Booking cannot start before {BUSINESS_START.strftime('%H:%M')}"
         )
 
     if local_end.time() > BUSINESS_END:
-        raise ValueError(
-            f"Booking cannot end after "
-            f"{BUSINESS_END.strftime('%H:%M')}"
-        )
+        raise ValueError(f"Booking cannot end after {BUSINESS_END.strftime('%H:%M')}")
 
 
 def calculate_booking_end(
@@ -60,9 +49,7 @@ def calculate_booking_end(
     minimum_hours = service.minimum_duration_hours
 
     if minimum_hours is None:
-        raise ValueError(
-            "Hourly service has no minimum duration"
-        )
+        raise ValueError("Hourly service has no minimum duration")
 
     duration_hours = (
         requested_duration_hours
@@ -71,23 +58,14 @@ def calculate_booking_end(
     )
 
     if duration_hours < minimum_hours:
+        raise ValueError(f"Мінімальне бронювання: {minimum_hours} годин")
+
+    if duration_hours > settings.max_booking_duration_hours:
         raise ValueError(
-            f"Мінімальне бронювання: "
-            f"{minimum_hours} годин"
+            f"Максимальне бронювання: {settings.max_booking_duration_hours} годин"
         )
 
-    if (
-        duration_hours
-        > settings.max_booking_duration_hours
-    ):
-        raise ValueError(
-            f"Максимальне бронювання: "
-            f"{settings.max_booking_duration_hours} годин"
-        )
-
-    return starts_at + timedelta(
-        hours=duration_hours
-    )
+    return starts_at + timedelta(hours=duration_hours)
 
 
 def calculate_daily_booking_interval(
@@ -96,35 +74,22 @@ def calculate_daily_booking_interval(
     check_out_date: date,
 ) -> tuple[datetime, datetime]:
     if check_out_date <= check_in_date:
-        raise ValueError(
-            "Дата виїзду повинна бути пізніше дати заїзду"
-        )
+        raise ValueError("Дата виїзду повинна бути пізніше дати заїзду")
 
     minimum_days = service.minimum_duration_days
 
     if minimum_days is None:
-        raise ValueError(
-            "Daily service has no minimum duration"
-        )
+        raise ValueError("Daily service has no minimum duration")
 
-    duration_days = (
-        check_out_date - check_in_date
-    ).days
+    duration_days = (check_out_date - check_in_date).days
 
     if duration_days < minimum_days:
-        raise ValueError(
-            f"Мінімальне бронювання: "
-            f"{minimum_days} доба"
-        )
+        raise ValueError(f"Мінімальне бронювання: {minimum_days} доба")
 
-    today = datetime.now(
-        KYIV_TZ
-    ).date()
+    today = datetime.now(KYIV_TZ).date()
 
     if check_in_date < today:
-        raise ValueError(
-            "Дата заїзду не може бути в минулому"
-        )
+        raise ValueError("Дата заїзду не може бути в минулому")
 
     starts_at = datetime.combine(
         check_in_date,
@@ -152,15 +117,11 @@ async def has_confirmed_conflict(
             Booking.service_id == service_id,
             Booking.starts_at < ends_at,
             Booking.ends_at > starts_at,
-            Booking.status
-            == BookingStatus.confirmed.value,
+            Booking.status == BookingStatus.confirmed.value,
         )
     )
 
-    return (
-        result.scalars().first()
-        is not None
-    )
+    return result.scalars().first() is not None
 
 
 async def has_other_confirmed_conflict(
@@ -170,31 +131,21 @@ async def has_other_confirmed_conflict(
     result = await db.execute(
         select(Booking).where(
             Booking.id != booking.id,
-            Booking.service_id
-            == booking.service_id,
-            Booking.starts_at
-            < booking.ends_at,
-            Booking.ends_at
-            > booking.starts_at,
-            Booking.status
-            == BookingStatus.confirmed.value,
+            Booking.service_id == booking.service_id,
+            Booking.starts_at < booking.ends_at,
+            Booking.ends_at > booking.starts_at,
+            Booking.status == BookingStatus.confirmed.value,
         )
     )
 
-    return (
-        result.scalars().first()
-        is not None
-    )
+    return result.scalars().first() is not None
 
 
 def validate_minimum_advance_booking(
     starts_at: datetime,
 ) -> None:
-    minimum_start = (
-        datetime.now(timezone.utc)
-        + timedelta(
-            hours=settings.minimum_advance_booking_hours
-        )
+    minimum_start = datetime.now(UTC) + timedelta(
+        hours=settings.minimum_advance_booking_hours
     )
 
     if starts_at <= minimum_start:
