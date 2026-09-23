@@ -15,6 +15,7 @@ from app.schemas.availability_block import (
     AvailabilityBlockResponse,
 )
 from app.security.admin_auth import require_admin
+from app.services.booking_service import has_confirmed_conflict
 
 router = APIRouter(
     prefix="/availability-blocks",
@@ -33,7 +34,15 @@ router = APIRouter(
             "content": {
                 "application/json": {"example": {"detail": "Service not found"}}
             },
-        }
+        },
+        409: {
+            "description": "Interval overlaps a confirmed booking",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "This time slot is already confirmed"}
+                }
+            },
+        },
     },
 )
 async def create_availability_block(
@@ -41,7 +50,9 @@ async def create_availability_block(
     db: SessionDep,
 ):
     result = await db.execute(
-        select(Service).where(Service.id == availability_block.service_id)
+        select(Service)
+        .where(Service.id == availability_block.service_id)
+        .with_for_update()
     )
 
     service = result.scalar_one_or_none()
@@ -50,6 +61,17 @@ async def create_availability_block(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Service not found",
+        )
+
+    if await has_confirmed_conflict(
+        db=db,
+        service_id=service.id,
+        starts_at=availability_block.starts_at,
+        ends_at=availability_block.ends_at,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This time slot is already confirmed",
         )
 
     block = AvailabilityBlock(**availability_block.model_dump())

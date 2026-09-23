@@ -20,6 +20,7 @@ from app.security.booking_rate_limit import booking_rate_limit
 from app.services.booking_service import (
     calculate_booking_end,
     calculate_daily_booking_interval,
+    has_availability_block_conflict,
     has_confirmed_conflict,
     has_other_confirmed_conflict,
     validate_booking_within_business_hours,
@@ -121,7 +122,9 @@ async def get_booking_by_id(
             },
         },
         409: {
-            "description": "Time slot conflict",
+            "description": (
+                "Time slot overlaps a confirmed booking or availability block"
+            ),
             "content": {
                 "application/json": {
                     "example": {"detail": "This time slot is already booked"}
@@ -141,7 +144,7 @@ async def create_booking(
     db: SessionDep,
 ):
     result = await db.execute(
-        select(Service).where(Service.id == booking_in.service_id)
+        select(Service).where(Service.id == booking_in.service_id).with_for_update()
     )
 
     service = result.scalar_one_or_none()
@@ -199,6 +202,17 @@ async def create_booking(
             detail=str(exc),
         ) from exc
 
+    if await has_availability_block_conflict(
+        db=db,
+        service_id=service.id,
+        starts_at=starts_at,
+        ends_at=ends_at,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This time slot is blocked",
+        )
+
     conflict = await has_confirmed_conflict(
         db=db,
         service_id=service.id,
@@ -255,7 +269,9 @@ async def create_booking(
             },
         },
         409: {
-            "description": "Confirmed booking conflict",
+            "description": (
+                "Time slot overlaps a confirmed booking or availability block"
+            ),
             "content": {
                 "application/json": {
                     "example": {"detail": "This time slot is already confirmed"}
@@ -280,6 +296,24 @@ async def update_booking_status(
         )
 
     if status_in.status == BookingStatus.confirmed:
+        # Use the same service lock as booking and availability block creation.
+        await db.execute(
+            select(Service.id)
+            .where(Service.id == booking.service_id)
+            .with_for_update()
+        )
+
+        if await has_availability_block_conflict(
+            db=db,
+            service_id=booking.service_id,
+            starts_at=booking.starts_at,
+            ends_at=booking.ends_at,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This time slot is blocked",
+            )
+
         conflict = await has_other_confirmed_conflict(
             db=db,
             booking=booking,

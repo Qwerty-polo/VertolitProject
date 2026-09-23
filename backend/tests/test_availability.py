@@ -1,9 +1,194 @@
+import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from redis.exceptions import RedisError
+from sqlalchemy import select, text
+
+from app.models.availability_block import AvailabilityBlock
+from app.models.booking import Booking
+from app.models.service import Service
 
 pytestmark = pytest.mark.usefixtures("admin_auth_override")
+
+
+async def make_booking_for_block_test(session_maker, booking_status):
+    starts_at = (datetime.now(UTC) + timedelta(days=2)).replace(
+        hour=12, minute=0, second=0, microsecond=0
+    )
+    ends_at = starts_at + timedelta(hours=3)
+    async with session_maker() as db:
+        service = Service(name="Block conflict test", minimum_duration_hours=3)
+        db.add(service)
+        await db.flush()
+        booking = Booking(
+            service_id=service.id,
+            customer_name="Ivan",
+            customer_phone="+380991112233",
+            starts_at=starts_at,
+            ends_at=ends_at,
+            guests=2,
+            status=booking_status,
+        )
+        db.add(booking)
+        await db.commit()
+        return service.id, booking.id, starts_at, ends_at
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("booking_status", "start_fraction", "end_fraction", "other_service", "expected"),
+    [
+        pytest.param("confirmed", 0, 1, False, 409, id="same-interval"),
+        pytest.param("confirmed", 0.25, 0.75, False, 409, id="block-inside-booking"),
+        pytest.param("confirmed", -1, 2, False, 409, id="block-covers-booking"),
+        pytest.param("confirmed", -1, 0.5, False, 409, id="overlaps-start"),
+        pytest.param("confirmed", 0.5, 2, False, 409, id="overlaps-end"),
+        pytest.param("confirmed", -1, 0, False, 201, id="touches-start"),
+        pytest.param("confirmed", 1, 2, False, 201, id="touches-end"),
+        pytest.param("confirmed", 0, 1, True, 201, id="different-service"),
+        pytest.param("pending", 0, 1, False, 201, id="pending-booking"),
+        pytest.param("cancelled", 0, 1, False, 201, id="cancelled-booking"),
+        pytest.param("completed", 0, 1, False, 201, id="completed-booking"),
+    ],
+)
+async def test_availability_block_respects_confirmed_bookings(
+    client,
+    test_db_session_maker,
+    booking_status,
+    start_fraction,
+    end_fraction,
+    other_service,
+    expected,
+):
+    service_id, booking_id, starts_at, ends_at = await make_booking_for_block_test(
+        test_db_session_maker, booking_status
+    )
+    if other_service:
+        async with test_db_session_maker() as db:
+            service = Service(name="Other service", minimum_duration_hours=3)
+            db.add(service)
+            await db.commit()
+            service_id = service.id
+
+    duration = ends_at - starts_at
+    response = await client.post(
+        "/api/v1/availability-blocks/",
+        json={
+            "service_id": service_id,
+            "starts_at": (starts_at + duration * start_fraction).isoformat(),
+            "ends_at": (starts_at + duration * end_fraction).isoformat(),
+        },
+    )
+    assert response.status_code == expected
+    if expected == 409:
+        assert response.json()["detail"] == "This time slot is already confirmed"
+
+    async with test_db_session_maker() as db:
+        blocks = (await db.scalars(select(AvailabilityBlock))).all()
+        assert len(blocks) == (0 if expected == 409 else 1)
+        booking = await db.get(Booking, booking_id)
+        assert booking.status == booking_status
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("waiting_operation", ["create", "confirm", "block"])
+async def test_booking_and_block_writes_wait_for_service_lock(
+    client, test_db_session_maker, waiting_operation
+):
+    service_id, booking_id, starts_at, ends_at = await make_booking_for_block_test(
+        test_db_session_maker, "pending"
+    )
+    block_payload = {
+        "service_id": service_id,
+        "starts_at": starts_at.isoformat(),
+        "ends_at": ends_at.isoformat(),
+    }
+
+    async with test_db_session_maker() as blocker:
+        await blocker.execute(
+            select(Service.id).where(Service.id == service_id).with_for_update()
+        )
+        blocker_pid = await blocker.scalar(text("SELECT pg_backend_pid()"))
+
+        if waiting_operation == "block":
+            request = client.post("/api/v1/availability-blocks/", json=block_payload)
+        elif waiting_operation == "confirm":
+            request = client.patch(
+                f"/api/v1/bookings/{booking_id}/status", json={"status": "confirmed"}
+            )
+        else:
+            request = client.post(
+                "/api/v1/bookings/",
+                json={
+                    "service_id": service_id,
+                    "customer_name": "Petro",
+                    "customer_phone": "+380992223344",
+                    "starts_at": starts_at.isoformat(),
+                    "duration_hours": 3,
+                    "guests": 2,
+                },
+            )
+
+        with patch("app.api.v1.bookings.send_booking_notification.delay"):
+            pending_request = asyncio.create_task(request)
+            try:
+                # Observe a real database lock wait, rather than rely on a sleep
+                # to make two requests happen to reach their checks together.
+                async with asyncio.timeout(10):
+                    async with test_db_session_maker() as observer:
+                        while not await observer.scalar(
+                            text(
+                                "SELECT EXISTS ("
+                                "SELECT 1 FROM pg_stat_activity "
+                                "WHERE datname = current_database() "
+                                "AND :blocker_pid = ANY(pg_blocking_pids(pid)))"
+                            ),
+                            {"blocker_pid": blocker_pid},
+                        ):
+                            if pending_request.done():
+                                response = pending_request.result()
+                                pytest.fail(
+                                    "Request finished before the service lock was "
+                                    f"released: HTTP {response.status_code}"
+                                )
+                            # Refresh PostgreSQL's transaction-local activity snapshot.
+                            await observer.rollback()
+                            await asyncio.sleep(0.01)
+
+                if waiting_operation == "block":
+                    booking = await blocker.get(Booking, booking_id)
+                    booking.status = "confirmed"
+                else:
+                    blocker.add(
+                        AvailabilityBlock(
+                            service_id=service_id, starts_at=starts_at, ends_at=ends_at
+                        )
+                    )
+                await blocker.commit()
+
+                response = await asyncio.wait_for(pending_request, timeout=10)
+            finally:
+                if not pending_request.done():
+                    pending_request.cancel()
+                await blocker.rollback()
+                await asyncio.gather(pending_request, return_exceptions=True)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "This time slot is already confirmed"
+        if waiting_operation == "block"
+        else "This time slot is blocked"
+    )
+    async with test_db_session_maker() as db:
+        bookings = (await db.scalars(select(Booking))).all()
+        blocks = (await db.scalars(select(AvailabilityBlock))).all()
+        assert len(bookings) == 1
+        assert bookings[0].status == (
+            "confirmed" if waiting_operation == "block" else "pending"
+        )
+        assert len(blocks) == (0 if waiting_operation == "block" else 1)
 
 
 @pytest.mark.asyncio

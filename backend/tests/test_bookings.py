@@ -29,6 +29,116 @@ pytestmark = pytest.mark.usefixtures("admin_auth_override")
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["create", "confirm"])
+@pytest.mark.parametrize("booking_type", ["hourly", "daily"])
+@pytest.mark.parametrize(
+    ("block_start_fraction", "block_end_fraction", "other_service", "conflicts"),
+    [
+        pytest.param(0, 1, False, True, id="same-interval"),
+        pytest.param(0.25, 0.75, False, True, id="block-inside-booking"),
+        pytest.param(-1, 2, False, True, id="block-covers-booking"),
+        pytest.param(-1, 0.5, False, True, id="overlaps-start"),
+        pytest.param(0.5, 2, False, True, id="overlaps-end"),
+        pytest.param(-1, 0, False, False, id="touches-start"),
+        pytest.param(1, 2, False, False, id="touches-end"),
+        pytest.param(0, 1, True, False, id="different-service"),
+    ],
+)
+async def test_booking_creation_and_confirmation_respect_blocks(
+    client,
+    action,
+    booking_type,
+    block_start_fraction,
+    block_end_fraction,
+    other_service,
+    conflicts,
+):
+    service_payload = {"name": "Blocked service", "booking_type": booking_type}
+    if booking_type == "hourly":
+        service_payload["minimum_duration_hours"] = 3
+    else:
+        service_payload["minimum_duration_days"] = 1
+
+    service_response = await client.post("/api/v1/services/", json=service_payload)
+    assert service_response.status_code == 201
+    service_id = service_response.json()["id"]
+
+    starts_at = datetime.fromisoformat(future_datetime())
+    booking_payload = {
+        "service_id": service_id,
+        "customer_name": "Ivan",
+        "customer_phone": "+380991112233",
+        "guests": 2,
+    }
+    if booking_type == "hourly":
+        ends_at = starts_at + timedelta(hours=3)
+        booking_payload.update(starts_at=starts_at.isoformat(), duration_hours=3)
+    else:
+        starts_at = starts_at.replace(hour=0)
+        ends_at = starts_at + timedelta(days=2)
+        booking_payload.update(
+            check_in_date=starts_at.date().isoformat(),
+            check_out_date=ends_at.date().isoformat(),
+        )
+
+    booking_id = None
+    if action == "confirm":
+        with patch("app.api.v1.bookings.send_booking_notification.delay"):
+            created = await client.post("/api/v1/bookings/", json=booking_payload)
+        assert created.status_code == 201
+        booking_id = created.json()["id"]
+
+    block_service_id = service_id
+    if other_service:
+        other = await client.post(
+            "/api/v1/services/", json={**service_payload, "name": "Other service"}
+        )
+        assert other.status_code == 201
+        block_service_id = other.json()["id"]
+
+    duration = ends_at - starts_at
+    block_response = await client.post(
+        "/api/v1/availability-blocks/",
+        json={
+            "service_id": block_service_id,
+            "starts_at": (starts_at + duration * block_start_fraction).isoformat(),
+            "ends_at": (starts_at + duration * block_end_fraction).isoformat(),
+        },
+    )
+    assert block_response.status_code == 201
+
+    with patch("app.api.v1.bookings.send_booking_notification.delay") as notification:
+        if action == "create":
+            response = await client.post("/api/v1/bookings/", json=booking_payload)
+        else:
+            response = await client.patch(
+                f"/api/v1/bookings/{booking_id}/status", json={"status": "confirmed"}
+            )
+
+    if conflicts:
+        assert response.status_code == 409
+        assert response.json()["detail"] == "This time slot is blocked"
+        notification.assert_not_called()
+    else:
+        assert response.status_code == (201 if action == "create" else 200)
+        assert response.json()["status"] == (
+            "pending" if action == "create" else "confirmed"
+        )
+
+    saved_response = await client.get("/api/v1/bookings/")
+    assert saved_response.status_code == 200
+    saved = saved_response.json()
+    if conflicts and action == "create":
+        assert saved == []
+    else:
+        assert len(saved) == 1
+        expected_status = (
+            "confirmed" if action == "confirm" and not conflicts else "pending"
+        )
+        assert saved[0]["status"] == expected_status
+
+
+@pytest.mark.asyncio
 async def test_create_booking(client):
     service_payload = {
         "name": "Sauna",
