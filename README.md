@@ -74,3 +74,9 @@ Once you're happy with it, this folder can be uploaded as-is to any static
 host (Netlify, Vercel, GitHub Pages, Cloudflare Pages, or plain shared
 hosting) — just upload the whole `vertolit-complex/` folder and point the
 domain at `index.html`.
+
+## Screenshots
+
+![Frontend screenshot](docs/images/frontend.png)
+
+![Swagger API screenshot](docs/images/swagger.png)
