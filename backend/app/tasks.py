@@ -3,9 +3,10 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.celery_app import celery_app
-from app.database import async_session_maker
+from app.config import settings
 from app.models.booking import Booking
 from app.schemas.booking import BookingStatus
 
@@ -56,45 +57,55 @@ async def _check_upcoming_bookings():
     now = datetime.now(UTC)
     reminder_until = now + timedelta(hours=24)
 
-    async with async_session_maker() as db:
-        result = await db.execute(
-            select(Booking).where(
-                Booking.status == BookingStatus.confirmed.value,
-                Booking.starts_at > now,
-                Booking.starts_at <= reminder_until,
-                Booking.reminder_sent.is_(False),
+    # Each asyncio.run() owns a new loop, so connections must not outlive it.
+    engine = create_async_engine(
+        settings.database_url,
+        echo=settings.sqlalchemy_echo,
+        pool_pre_ping=True,
+    )
+    try:
+        session_maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_maker() as db:
+            result = await db.execute(
+                select(Booking).where(
+                    Booking.status == BookingStatus.confirmed.value,
+                    Booking.starts_at > now,
+                    Booking.starts_at <= reminder_until,
+                    Booking.reminder_sent.is_(False),
+                )
             )
-        )
 
-        bookings = result.scalars().all()
+            bookings = result.scalars().all()
 
-        reminders_enqueued = 0
+            reminders_enqueued = 0
 
-        for booking in bookings:
-            try:
-                send_booking_reminder.delay(
-                    booking.id,
-                    booking.starts_at.isoformat(),
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to enqueue booking reminder booking_id=%s",
-                    booking.id,
-                )
-                continue
+            for booking in bookings:
+                try:
+                    send_booking_reminder.delay(
+                        booking.id,
+                        booking.starts_at.isoformat(),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to enqueue booking reminder booking_id=%s",
+                        booking.id,
+                    )
+                    continue
 
-            booking.reminder_sent = True
-            reminders_enqueued += 1
+                booking.reminder_sent = True
+                reminders_enqueued += 1
 
-        await db.commit()
+            await db.commit()
 
-        logger.info(
-            "Enqueued %s booking reminders out of %s upcoming bookings",
-            reminders_enqueued,
-            len(bookings),
-        )
+            logger.info(
+                "Enqueued %s booking reminders out of %s upcoming bookings",
+                reminders_enqueued,
+                len(bookings),
+            )
 
-        return reminders_enqueued
+            return reminders_enqueued
+    finally:
+        await engine.dispose()
 
 
 @celery_app.task(

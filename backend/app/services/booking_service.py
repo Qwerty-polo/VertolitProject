@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.availability_block import AvailabilityBlock
 from app.models.booking import Booking
 from app.models.service import Service
 from app.schemas.booking import BookingStatus
@@ -104,6 +105,25 @@ def calculate_daily_booking_interval(
     )
 
     return starts_at, ends_at
+
+
+async def has_availability_block_conflict(
+    db: AsyncSession,
+    service_id: int,
+    starts_at: datetime,
+    ends_at: datetime,
+) -> bool:
+    result = await db.execute(
+        select(AvailabilityBlock.id)
+        .where(
+            AvailabilityBlock.service_id == service_id,
+            AvailabilityBlock.starts_at < ends_at,
+            AvailabilityBlock.ends_at > starts_at,
+        )
+        .limit(1)
+    )
+
+    return result.scalar_one_or_none() is not None
 
 
 async def has_confirmed_conflict(

@@ -90,6 +90,7 @@ Start the application with Docker:
 docker compose up --build
 ```
 
+
 ## Screenshots
 
 ### Frontend
