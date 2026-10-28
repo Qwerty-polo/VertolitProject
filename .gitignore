@@ -29,3 +29,8 @@ error.log
 
 
 vertolit-security-review.zip
+
+# Local IDE files, test coverage, and Celery runtime state
+.coverage
+.coverage.*
+celerybeat-schedule*

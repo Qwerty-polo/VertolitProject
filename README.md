@@ -5,6 +5,10 @@ Backend system for a leisure complex built with FastAPI and PostgreSQL.
 The application provides REST API functionality for managing services, bookings,
 availability, administrative operations, and background notifications.
 
+## Live Website
+
+[Visit Vertolit Complex](https://vertolit.pp.ua/)
+
 ## Features
 
 - Service management
@@ -90,16 +94,6 @@ Start the application with Docker:
 docker compose up --build
 ```
 
-
-## Screenshots
-
-### Frontend
-
-![Vertolit Complex frontend](docs/images/frontend.png)
-
-### API Documentation
-
-![Swagger API documentation](docs/images/swagger.png)
 
 ## Author
 
